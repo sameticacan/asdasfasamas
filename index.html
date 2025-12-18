@@ -1,32 +1,156 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>KoçTakip | Öğrenci • Veli • Yönetim</title>
-  <link rel="stylesheet" href="style.css?v=1.0.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zihin Akademisi | Yeni Nesil Eğitim ve Koçluk</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <div id="app"></div>    
-    <!-- Modals -->
-  <div id="modalBackdrop" class="modal-backdrop hidden"></div>
 
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <div id="modalTitle" class="modal-title">Modal</div>
-      <button id="modalClose" class="icon-btn" aria-label="Kapat">✕</button>
+  <nav class="navbar glass">
+    <div class="container nav-flex">
+      <div class="brand">
+        <i class="fa-solid fa-brain" style="color:var(--accent);"></i>
+        Zihin<span class="light">Akademisi</span>
+      </div>
+      
+      <div class="nav-links desktop-only">
+        <a href="#model">Eğitim Modelimiz</a>
+        <a href="#kadro">Kadromuz</a>
+        <a href="#iletisim">İletişim</a>
+      </div>
+
+      <button id="btnLogin" class="btn-login">
+        <i class="fa-solid fa-lock"></i> Öğrenci / Veli Girişi
+      </button>
     </div>
-    <div id="modalBody" class="modal-body"></div>
-    <div id="modalFoot" class="modal-foot"></div>
-  </div>
+  </nav>
 
-  <!-- Toasts -->
-  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+  <header class="hero-section">
+    <div class="container hero-content">
+      <div class="hero-text">
+        <span class="badge-hero">2025 Kayıtları Başladı</span>
+        <h1>Potansiyelini <br><span class="text-gradient">Zirveye Taşı</span></h1>
+        <p>Klasik dershaneciliği unutun. Zihin Akademisi; kişiye özel analiz, yapay zeka destekli koçluk ve uzman öğretmen kadrosuyla başarıyı şansa bırakmaz.</p>
+        <div class="hero-btns">
+          <button class="btn-primary">Bilgi Al</button>
+          <button class="btn-outline">Sistemi İncele</button>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="num">15+</div>
+          <div class="lbl">Uzman Eğitmen</div>
+        </div>
+        <div class="stat-card">
+          <div class="num">%90</div>
+          <div class="lbl">Yerleşme Oranı</div>
+        </div>
+        <div class="stat-card">
+          <div class="num">7/24</div>
+          <div class="lbl">Dijital Takip</div>
+        </div>
+      </div>
+    </div>
+  </header>
 
-  <!-- Supabase v2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+  <section id="model" class="section bg-dark">
+    <div class="container">
+      <div class="section-title">
+        <h2>Fark Yaratan Eğitim Modelimiz</h2>
+        <p>Sadece ders anlatmıyoruz, öğrenmeyi öğretiyoruz.</p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-box">
+          <i class="fa-solid fa-chart-line icon"></i>
+          <h3>KoçTakip Sistemi</h3>
+          <p>Ödevler, deneme analizleri ve gelişim grafikleri anlık olarak veli ve öğrenci panelinde.</p>
+        </div>
+        <div class="feature-box">
+          <i class="fa-solid fa-users-viewfinder icon"></i>
+          <h3>Butik Sınıflar</h3>
+          <p>Kalabalıkta kaybolma yok. Özel ders tadında, odaklanmış gruplarla maksimum verim.</p>
+        </div>
+        <div class="feature-box">
+          <i class="fa-solid fa-brain icon"></i>
+          <h3>Psikolojik Destek</h3>
+          <p>Sınav kaygısı, motivasyon ve odaklanma sorunlarına profesyonel yaklaşım.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <script src="app.js?v=1.0.1"></script>
+  <section id="kadro" class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Uzman Kadromuz</h2>
+        <p>Başarıyı inşa eden mimarlarımızla tanışın.</p>
+      </div>
+
+      <div class="teacher-scroll">
+        <div class="t-card">
+          <div class="t-img-box">
+            <img src="https://i.pravatar.cc/150?img=68" alt="Hoca">
+            <span class="branch-badge">Matematik</span>
+          </div>
+          <div class="t-info">
+            <h4>Ahmet Yılmaz</h4>
+            <p>15 Yıl Deneyim • ODTÜ Mezunu</p>
+            <small>"Matematiği sevdiren adam" olarak bilinir. Geometri özel ilgi alanı.</small>
+          </div>
+        </div>
+
+        <div class="t-card">
+          <div class="t-img-box">
+            <img src="https://i.pravatar.cc/150?img=44" alt="Hoca">
+            <span class="branch-badge">Fizik</span>
+          </div>
+          <div class="t-info">
+            <h4>Selin Demir</h4>
+            <p>10 Yıl Deneyim • Boğaziçi Mezunu</p>
+            <small>Yeni nesil soruların ustası. Deneylerle fizik anlatımı.</small>
+          </div>
+        </div>
+
+        <div class="t-card">
+          <div class="t-img-box">
+            <img src="https://i.pravatar.cc/150?img=33" alt="Hoca">
+            <span class="branch-badge">Koçluk</span>
+          </div>
+          <div class="t-info">
+            <h4>Caner Erkin</h4>
+            <p>Eğitim Koçu • Psikolog</p>
+            <small>Sınav stratejisi ve mental hazırlık süreçlerini yönetir.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="iletisim">
+    <div class="container footer-content">
+      <div>
+        <h3>Zihin Akademisi</h3>
+        <p>Geleceğinizi şansa bırakmayın.</p>
+      </div>
+      <div style="text-align:right;">
+        <p>📍 İzmir / Türkiye</p>
+        <p>📞 0555 123 45 67</p>
+        <p>✉️ bilgi@zihinakademisi.com</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Giriş butonuna basınca senin asıl App'i (Panel kodlarını) yükleyeceğiz
+    document.getElementById('btnLogin').addEventListener('click', () => {
+      // Normalde burası 'panel.html' sayfasına gider.
+      // Şimdilik demo amaçlı alert veriyorum.
+      window.location.href = "panel.html"; // Buraya senin eski index.html'ini panel.html yapıp koyacağız.
+    });
+  </script>
 </body>
 </html>
