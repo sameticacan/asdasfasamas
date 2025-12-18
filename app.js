@@ -468,7 +468,7 @@ function renderAuth(role){
     if(!validEmail(email)) return toast("error","Geçerli bir email gir.");
     if(password.length < 8) return toast("error","Şifre en az 8 karakter olmalı.");
     if(error) return toast("error","Kayıt başarısız: " + error.message);
-    await sb.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
   email,
   password,
   options: {
@@ -1195,20 +1195,51 @@ async function studentMySubjects(nav){
   const subjMap = new Map(subjects.map(s=>[s.id, s]));
 
   const rows = (enrolls||[]).map(e => `
-    <tr>
-      <td><b>${esc(subjMap.get(e.subject_id)?.name || "Ders")}</b><div><small>${esc(levelLabel(subjMap.get(e.subject_id)?.level || ""))}</small></div></td>
-      <td>${esc(e.status)}</td>
-      <td><small>${new Date(e.created_at).toLocaleDateString("tr-TR")}</small></td>
-      <td><button class="btn secondary" data-open-en="${esc(e.id)}">Görevler</button></td>
-    </tr>
-  `).join("");
+  <tr>
+    <td>
+      <b>${esc(pMap.get(e.user_profile_id)?.full_name || "Kullanıcı")}</b>
+      <div><small>${esc(pMap.get(e.user_profile_id)?.role || "")}</small></div>
+      ${e.meta?.child_name ? `<div class="badge warn" style="margin-top:6px;">Öğrenci: ${esc(e.meta.child_name)}</div>` : ``}
+    </td>
+    <td>${esc(e.status)}</td>
+    <td><small>${new Date(e.created_at).toLocaleDateString("tr-TR")}</small></td>
+    <td>
+      ${e.status === 'requested' 
+        ? `<button class="btn green" data-approve="${esc(e.id)}">Onayla</button>` 
+        : ``}
+      <button class="btn secondary" data-taskfor="${esc(e.id)}">Görev Ekle</button>
+      <button class="btn secondary" data-viewtasks="${esc(e.id)}">Görevler</button>
+    </td>
+  </tr>
+`).join("");
 
-  qs("#myEnrolls").innerHTML = `
-    <table class="table">
-      <thead><tr><th>Ders</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4"><div class="lock">Henüz kayıt yok. “Dersler”den talep gönder.</div></td></tr>`}</tbody>
-    </table>
-  `;
+// 2. HTML'i ekrana bas
+qs("#teacherDetail").innerHTML = `
+  <div class="row spread">
+    <div>
+      <div style="font-weight:900">Kayıtlı Öğrenciler</div>
+      <small>Bu dersin altındaki kayıtlar.</small>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <table class="table">
+    <thead><tr><th>Kullanıcı</th><th>Durum</th><th>Tarih</th><th>İşlem</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="4"><div class="lock">Kayıt yok.</div></td></tr>`}</tbody>
+  </table>
+`;
+
+// 3. Listener'ları HTML basıldıktan SONRA, tırnakların DIŞINA ekle
+qsa("[data-approve]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const eid = btn.getAttribute("data-approve");
+    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", eid);
+    if(error) toast("error", error.message);
+    else {
+      toast("success", "Öğrenci derse kabul edildi.");
+      await renderTeacherSubjectDetail(subject_id);
+    }
+  });
+});
 
   qsa("[data-open-en]").forEach(btn => {
     btn.addEventListener("click", async () => {
