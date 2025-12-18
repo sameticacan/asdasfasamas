@@ -17,8 +17,16 @@ const SUPABASE_URL = "https://vgszhwqpyzzcxlczuedl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnc3pod3FweXp6Y3hsY3p1ZWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMDE4NjEsImV4cCI6MjA4MTU3Nzg2MX0.XNTCzfWBJR4WY6S3KxcitO9JaTYD53PnYJwM2v46yGE";
 const ADMIN_PANEL_PIN = "1234"; // sadece ekstra kapı, asıl güvenlik RLS + admin role.
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
+if(!window.supabase){
+  alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
+}
+if(!supabaseConfigOk){
+  alert("Supabase yapılandırması eksik (URL veya ANON KEY boş). Lütfen ortam değişkenlerini kontrol et.");
+}
+const sb = (window.supabase && supabaseConfigOk)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 const $app = document.getElementById("app");
 const $modal = document.getElementById("modal");
 const $backdrop = document.getElementById("modalBackdrop");
@@ -36,18 +44,23 @@ const state = {
   params: {},
   cache: {
     subjects: null,
+    subjectsMeta: { error:null, empty:false },
     packagesBySubject: new Map(),
     teacherSubjects: null,
-  }
-};
-if(!window.supabase){
-  alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
-}
+      },
+  debugOpen: false,
+  lastError: "",
+  };
+ensureDebugPanel();
+
 
 init();
 
 async function init(){
-  // session
+  if(!sb){
+    $app.innerHTML = `<div class="container"><div class="card"><h2>Supabase bağlantısı yok</h2><p>CDN veya anahtar eksik. İnternetini ve anahtarları kontrol et.</p></div></div>`;
+    return;
+  }
   const { data } = await sb.auth.getSession();
   state.session = data.session || null;
   state.user = state.session?.user || null;
@@ -83,9 +96,17 @@ function toast(type, msg){
   const wrap = document.getElementById("toasts");
   const t = document.createElement("div");
   t.className = `toast ${type || ""}`.trim();
-  t.textContent = msg;
+  let text = msg;
+  if((msg||"").includes("Failed to fetch")){
+    text = `${msg} (ağ/SSL ya da CORS engeli olabilir)`;
+  }
+  t.textContent = text;
+  wrap.appendChild(t);
   wrap.appendChild(t);
   setTimeout(() => t.remove(), 3600);
+  if(type === "error" || type === "warn"){
+    setLastError(text);
+  }
 }
 
 function openModal(title, bodyHTML, footHTML){
@@ -104,9 +125,65 @@ function closeModal(){
 }
 $backdrop.addEventListener("click", closeModal);
 
-function qs(sel, root=document){ return root.querySelector(sel); }
-function qsa(sel, root=document){ return [...root.querySelectorAll(sel)]; }
+function qs(sel, root=document){ return root ? root.querySelector(sel) : null; }
+function qsa(sel, root=document){
+  if(!root || !root.querySelectorAll) return [];
+  return Array.from(root.querySelectorAll(sel));
+}
 function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':"&quot;","'":"&#039;"}[m])); }
+function ensureDebugPanel(){
+  if(qs("#debugPanel")) return;
+  const box = document.createElement("div");
+  box.id = "debugPanel";
+  box.className = "debug-panel hidden";
+  box.innerHTML = `
+    <div class="debug-head">
+      <div>Debug</div>
+      <button class="icon-btn" id="debugToggle" aria-label="Debug kapat">✕</button>
+    </div>
+    <div id="debugBody" class="debug-body"></div>
+  `;
+  document.body.appendChild(box);
+
+  const chip = document.createElement("button");
+  chip.id = "debugChip";
+  chip.className = "debug-chip";
+  chip.textContent = "Debug";
+  chip.addEventListener("click", () => {
+    state.debugOpen = !state.debugOpen;
+    updateDebugPanel();
+  });
+  document.body.appendChild(chip);
+
+  box.querySelector("#debugToggle").addEventListener("click", () => {
+    state.debugOpen = false;
+    updateDebugPanel();
+  });
+}
+
+function setLastError(msg){
+  state.lastError = msg || "";
+  updateDebugPanel();
+}
+
+function updateDebugPanel(){
+  const box = qs("#debugPanel");
+  if(!box) return;
+  const body = qs("#debugBody", box);
+  const subjectsCount = state.cache.subjects?.length || 0;
+  const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr)=> sum + (arr?.length||0),0);
+  body.innerHTML = `
+    <div><b>Session:</b> ${state.session ? "var" : "yok"}</div>
+    <div><b>User:</b> ${esc(state.user?.id || "-")} • ${esc(state.user?.email || "")}</div>
+    <div><b>Email doğrulandı:</b> ${isEmailConfirmed() ? "evet" : "hayır"}</div>
+    <div><b>Son hata:</b> ${esc(state.lastError || "-")}</div>
+    <div><b>Ders/Paket:</b> ${subjectsCount} / ${packagesCount}</div>
+    <div><b>Subjects meta:</b> ${state.cache.subjectsMeta?.error ? "hata" : state.cache.subjectsMeta?.empty ? "boş" : "ok"}</div>
+  `;
+
+  if(state.roleChoice === "admin") state.debugOpen = true;
+  box.classList.toggle("hidden", !state.debugOpen);
+}
 
 function setBodyRoleClass(){
   document.body.classList.remove("role-student","role-parent","role-admin");
@@ -124,7 +201,8 @@ function activeHash(){
 async function route(){
   setBodyRoleClass();
   const h = activeHash();
-  state.view = h;
+  if(state.roleChoice === "admin") state.debugOpen = true;
+  updateDebugPanel();
 
   if(!state.roleChoice){
     renderRoleSelect();
@@ -190,6 +268,7 @@ async function ensureProfileLoaded(){
 
   if(prof){
     state.profile = prof;
+    updateDebugPanel();
     return;
   }
 
@@ -210,6 +289,7 @@ async function ensureProfileLoaded(){
     return;
   }
   state.profile = ins;
+  updateDebugPanel();
 }
 
 /* ----------------- UI: SHELL ----------------- */
@@ -244,17 +324,7 @@ function shell({ titleRight="", navItems=[] , contentHTML="" }){
   `;
 
   qs("#logoutBtn").addEventListener("click", async () => {
-    await sb.auth.signUp({
-  email,
-  password,
-  options: {
-    data: { full_name },
-    emailRedirectTo: window.location.origin
-  }
-});
-    clearRoleChoice();
-    location.hash = "";
-    toast("success", "Çıkış yapıldı.");
+    await safeSignOut();
   });
 }
 
@@ -426,7 +496,48 @@ function renderAuth(role){
     toast("success","Kayıt alındı. Email doğrulama linkini kontrol et.");
   }
 }
+async function safeSignOut(){
+  clearRoleChoice();
+  if(!sb){
+    state.session = null;
+    state.user = null;
+    state.profile = null;
+    location.hash = "";
+    return;
+  }
+  try{
+    const { error: refreshError } = await sb.auth.refreshSession();
+    if(refreshError && refreshError.message && refreshError.message.includes("Failed to fetch")){
+      toast("warn","Bağlantı zayıf: refresh başarısız (çıkış zorlanıyor).");
+    }
+    let { error } = await sb.auth.signOut({ scope: "global" });
+    if(error && (error.status === 403 || /token/i.test(error.message || ""))){
+      const alt = await sb.auth.signOut({ scope: "local" });
+      if(alt.error){
+        toast("warn", "Yerel oturum kapatma uyarısı: " + alt.error.message);
+      }
+    } else if(error){
+      toast("error","Çıkış hatası: " + error.message);
+    }
+  } catch(err){
+    const msg = err?.message || String(err);
+    toast("error","Çıkış tamamlanamadı: " + msg);
+  }
 
+  // sb local storage anahtarı temizle
+  const ref = (SUPABASE_URL.split("https://")[1] || "").split(".")[0];
+  const key = `sb-${ref}-auth-token`;
+  localStorage.removeItem(key);
+  localStorage.removeItem(`${key}-global`);
+
+  state.session = null;
+  state.user = null;
+  state.profile = null;
+  state.cache = { subjects:null, subjectsMeta:{error:null, empty:false}, packagesBySubject:new Map(), teacherSubjects:null };
+  location.hash = "";
+  toast("success", "Çıkış yapıldı.");
+  updateDebugPanel();
+}
 function renderRoleMismatch(msg){
   shell({
     navItems: [{hash:"home", label:"Durum"}],
@@ -503,6 +614,7 @@ function renderAdminHub(hash){
 /* ----------------- COMMON DATA ----------------- */
 async function fetchSubjects(){
   if(state.cache.subjects) return state.cache.subjects;
+  state.cache.subjectsMeta = { error:null, empty:false };
   const { data, error } = await sb
     .from("subjects")
     .select("*")
@@ -511,13 +623,21 @@ async function fetchSubjects(){
     .order("name", { ascending: true });
 
   if(error){
+    state.cache.subjectsMeta.error = error;
     toast("error","Dersler alınamadı: " + error.message);
     return [];
   }
   state.cache.subjects = data || [];
+  state.cache.subjectsMeta.empty = !(data && data.length);
+  updateDebugPanel();
   return state.cache.subjects;
 }
-
+function resetCatalogCache(){
+  state.cache.subjects = null;
+  state.cache.subjectsMeta = { error:null, empty:false };
+  state.cache.packagesBySubject = new Map();
+  updateDebugPanel();
+}
 async function fetchPackages(subject_id){
   if(state.cache.packagesBySubject.has(subject_id)) return state.cache.packagesBySubject.get(subject_id);
 
@@ -533,6 +653,8 @@ async function fetchPackages(subject_id){
   }
   state.cache.packagesBySubject.set(subject_id, data || []);
   return data || [];
+  updateDebugPanel();
+  return state.cache.packagesBySubject.get(subject_id);
 }
 
 async function fetchTeacherLinksForSubject(subject_id){
@@ -727,6 +849,7 @@ async function studentCatalog(nav){
           <span class="badge ${isEmailConfirmed() ? "green" : "warn"}">
             ${isEmailConfirmed() ? "Email doğrulandı" : "Fiyatlar kilitli"}
           </span>
+          <button class="btn secondary" id="catalogRefresh">Yenile</button>
         </div>
       </div>
       <div class="grid3" style="margin-top:12px;">
@@ -761,6 +884,24 @@ async function studentCatalog(nav){
   `});
 
   const subjects = await fetchSubjects();
+  const meta = state.cache.subjectsMeta || {};
+  const listEl = qs("#catalogList");
+  const btnRefresh = qs("#catalogRefresh");
+  if(btnRefresh){
+    btnRefresh.addEventListener("click", async () => {
+      resetCatalogCache();
+      await studentCatalog(nav);
+    });
+  }
+
+  if(meta.error){
+    listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(meta.error.message || "bilinmiyor")}</div>`;
+    return;
+  } else if(meta.empty){
+    listEl.innerHTML = `<div class="lock">Boş veri (RLS veya henüz eklenmedi).</div>`;
+    return;
+  }
+
 
   const render = async () => {
     const level = qs("#fLevel").value;
@@ -1169,14 +1310,32 @@ async function parentCatalog(nav){
           <h2>Ders Kataloğu</h2>
           <p>Veli olarak ders talebi gönderirken öğrenci adını (opsiyonel) ekleyebilirsin.</p>
         </div>
-        <span class="badge ${isEmailConfirmed() ? "green" : "warn"}">${isEmailConfirmed() ? "Email doğrulandı" : "Fiyatlar kilitli"}</span>
-      </div>
+        <div class="row" style="gap:8px;">
+          <span class="badge ${isEmailConfirmed() ? "green" : "warn"}">${isEmailConfirmed() ? "Email doğrulandı" : "Fiyatlar kilitli"}</span>
+          <button class="btn secondary" id="catalogRefresh">Yenile</button>
+        </div>      </div>
       <div class="divider"></div>
       <div id="catalogList"><div class="skel" style="width:78%"></div></div>
     </div>
   `});
 
   const subjects = await fetchSubjects();
+  const meta = state.cache.subjectsMeta || {};
+  const listEl = qs("#catalogList");
+  const btnRefresh = qs("#catalogRefresh");
+  if(btnRefresh){
+    btnRefresh.addEventListener("click", async () => {
+      resetCatalogCache();
+      await parentCatalog(nav);
+    });
+  }
+  if(meta.error){
+    listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(meta.error.message || "bilinmiyor")}</div>`;
+    return;
+  } else if(meta.empty){
+    listEl.innerHTML = `<div class="lock">Boş veri (RLS veya henüz eklenmedi).</div>`;
+    return;
+  }
   // English top by sort_order already.
   const html = subjects.map(s => {
     const isEnglish = (s.name||"").toLowerCase().includes("ingilizce") || (s.name||"").toLowerCase().includes("english");
@@ -1885,6 +2044,22 @@ async function adminReviews(nav){
 }
 
 async function adminPanel(nav){
+const meta = state.cache.subjectsMeta || {};
+  const listEl = qs("#catalogList");
+  const btnRefresh = qs("#catalogRefresh");
+  if(btnRefresh){
+    btnRefresh.addEventListener("click", async () => {
+      resetCatalogCache();
+      await parentCatalog(nav);
+    });
+  }
+  if(meta.error){
+    listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(meta.error.message || "bilinmiyor")}</div>`;
+    return;
+  } else if(meta.empty){
+    listEl.innerHTML = `<div class="lock">Boş veri (RLS veya henüz eklenmedi).</div>`;
+    return;
+  }
   // PIN gate
   openModal("PIN Girişi", `
     <label>Yönetim Paneli PIN</label>
@@ -2075,4 +2250,4 @@ function buildDefaultSubjects(){
 }
 
 /* ----------------- NAV: default hash ----------------- */
-if(!location.hash) location.hash = "#home";
+if(typeof location !== "undefined" && !location.hash) location.hash = "#home";
