@@ -40,6 +40,9 @@ const state = {
     teacherSubjects: null,
   }
 };
+if(!window.supabase){
+  alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
+}
 
 init();
 
@@ -241,7 +244,14 @@ function shell({ titleRight="", navItems=[] , contentHTML="" }){
   `;
 
   qs("#logoutBtn").addEventListener("click", async () => {
-    await sb.auth.signOut();
+    await sb.auth.signUp({
+  email,
+  password,
+  options: {
+    data: { full_name },
+    emailRedirectTo: window.location.origin
+  }
+});
     clearRoleChoice();
     location.hash = "";
     toast("success", "Çıkış yapıldı.");
@@ -383,16 +393,19 @@ function renderAuth(role){
     const full_name = qs("#suName").value.trim();
     const email = qs("#suEmail").value.trim();
     const password = qs("#suPass").value;
-
+    
     if(full_name.length < 3) return toast("error","Ad soyad gir.");
     if(!validEmail(email)) return toast("error","Geçerli bir email gir.");
     if(password.length < 8) return toast("error","Şifre en az 8 karakter olmalı.");
-
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name } }
-    });
+    if(error) return toast("error","Kayıt başarısız: " + error.message);
+    await sb.auth.signUp({
+  email,
+  password,
+  options: {
+    data: { full_name },
+    emailRedirectTo: window.location.origin
+  }
+});
     if(error) return toast("error","Kayıt başarısız: " + error.message);
 
     // profiles insert (role)
@@ -1350,6 +1363,18 @@ async function renderTeacherSubjectDetail(subject_id){
         <button class="btn secondary" data-viewtasks="${esc(e.id)}">Görevler</button>
       </td>
     </tr>
+    qsa("[data-approve]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const eid = btn.getAttribute("data-approve");
+    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", eid);
+    if(error) toast("error", error.message);
+    else {
+      toast("success", "Öğrenci derse kabul edildi.");
+      // Listeyi yenilemek için fonksiyonu tekrar çağır
+      await renderTeacherSubjectDetail(subject_id);
+    }
+  });
+});
   `).join("");
 
   qs("#teacherDetail").innerHTML = `
