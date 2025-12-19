@@ -1,10 +1,11 @@
+<!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <title>Zihin Akademisi | Yeni Nesil Eğitim ve Koçluk</title>
-  <link rel="stylesheet" href="style.css?v=1.0.2" />
+  <title>Zihin Atölyesi | Birebir Koçluk ve Özel Ders</title>
+  <link rel="stylesheet" href="style.css?v=1.0.3" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -13,17 +14,17 @@
     <div class="container nav-flex">
       <div class="brand">
         <i class="fa-solid fa-brain" style="color:var(--accent);"></i>
-        Zihin<span class="light">Akademisi</span>
+        Zihin<span class="light">Atölyesi</span>
       </div>
-
+      
       <div class="nav-links desktop-only">
-        <a href="#model">Eğitim Modelimiz</a>
-        <a href="#kadro">Kadromuz</a>
+        <a href="#nasil">Nasıl Çalışıyoruz?</a>
+        <a href="#ekip">Ekip</a>
         <a href="#iletisim">İletişim</a>
       </div>
 
       <button id="btnLogin" class="btn-login">
-        <i class="fa-solid fa-lock"></i> Öğrenci / Veli Girişi
+        <i class="fa-solid fa-rocket"></i> Panele Giriş Yap
       </button>
     </div>
   </nav>
@@ -31,99 +32,100 @@
   <header class="hero-section">
     <div class="container hero-content">
       <div class="hero-text">
-        <span class="badge-hero">2025 Kayıtları Başladı</span>
-        <h1>Potansiyelini <br><span class="text-gradient">Zirveye Taşı</span></h1>
-        <p>Klasik dershaneciliği unutun. Zihin Akademisi; kişiye özel analiz, yapay zeka destekli koçluk ve uzman öğretmen kadrosuyla başarıyı şansa bırakmaz.</p>
+        <span class="badge-hero">🚀 Sadece Bize Özel</span>
+        <h1>Dershane Değil,<br><span class="text-gradient">Yol Arkadaşlığı</span></h1>
+        <p>Kalabalık sınıflarda kaybolmak yok. Burası bizim alanımız. Birebir ilgi, nokta atışı dersler ve sıkı takip sistemiyle hedeflere birlikte koşuyoruz.</p>
         <div class="hero-btns">
-          <button class="btn-primary">Bilgi Al</button>
-          <button class="btn-outline">Sistemi İncele</button>
+          <button class="btn-primary" onclick="document.getElementById('ekip').scrollIntoView()">Ekibi Gör</button>
+          <button class="btn-outline" onclick="document.getElementById('nasil').scrollIntoView()">Sistem Nasıl?</button>
         </div>
       </div>
+      
       <div class="hero-stats">
         <div class="stat-card">
-          <div class="num">15+</div>
-          <div class="lbl">Uzman Eğitmen</div>
-        </div>
-        <div class="stat-card">
-          <div class="num">%90</div>
-          <div class="lbl">Yerleşme Oranı</div>
+          <div class="num">%100</div>
+          <div class="lbl">Birebir İlgi</div>
         </div>
         <div class="stat-card">
           <div class="num">7/24</div>
-          <div class="lbl">Dijital Takip</div>
+          <div class="lbl">WhatsApp & Soru</div>
+        </div>
+        <div class="stat-card">
+          <div class="num">Koç</div>
+          <div class="lbl">Sıkı Takip</div>
         </div>
       </div>
     </div>
   </header>
 
-  <section id="model" class="section bg-dark">
+  <section id="nasil" class="section bg-dark">
     <div class="container">
       <div class="section-title">
-        <h2>Fark Yaratan Eğitim Modelimiz</h2>
-        <p>Sadece ders anlatmıyoruz, öğrenmeyi öğretiyoruz.</p>
+        <h2>Bizim Tarzımız</h2>
+        <p>Sıkıcı kurallar yok, disiplin ve hedef var.</p>
       </div>
-
+      
       <div class="features-grid">
         <div class="feature-box">
-          <i class="fa-solid fa-chart-line icon"></i>
-          <h3>KoçTakip Sistemi</h3>
-          <p>Ödevler, deneme analizleri ve gelişim grafikleri anlık olarak veli ve öğrenci panelinde.</p>
+          <i class="fa-solid fa-chart-pie icon"></i>
+          <h3>Dijital Takip (KoçTakip)</h3>
+          <p>Hangi derste ne durumdasın, ödevlerin bitti mi? Hepsini panelden anlık takip ediyoruz. Kaçamak yok!</p>
         </div>
         <div class="feature-box">
-          <i class="fa-solid fa-users-viewfinder icon"></i>
-          <h3>Butik Sınıflar</h3>
-          <p>Kalabalıkta kaybolma yok. Özel ders tadında, odaklanmış gruplarla maksimum verim.</p>
+          <i class="fa-solid fa-user-graduate icon"></i>
+          <h3>Nokta Atışı Ders</h3>
+          <p>Gereksiz konu anlatımlarıyla boğulmak yok. Eksik olduğun yere odaklanıp netlerini artırıyoruz.</p>
         </div>
         <div class="feature-box">
-          <i class="fa-solid fa-brain icon"></i>
-          <h3>Psikolojik Destek</h3>
-          <p>Sınav kaygısı, motivasyon ve odaklanma sorunlarına profesyonel yaklaşım.</p>
+          <i class="fa-solid fa-fire icon"></i>
+          <h3>Motivasyon Ağı</h3>
+          <p>Düştüğün an kaldıran, sınav stresini yönetmeni sağlayan bir ekip ortamı.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="kadro" class="section">
+  <section id="ekip" class="section">
     <div class="container">
       <div class="section-title">
-        <h2>Uzman Kadromuz</h2>
-        <p>Başarıyı inşa eden mimarlarımızla tanışın.</p>
+        <h2>Ekip Arkadaşlarımız</h2>
+        <p>Bu yolda seninle ter dökecek hocalarımız.</p>
       </div>
 
       <div class="teacher-scroll">
         <div class="t-card">
           <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=68" alt="Hoca">
+            <img src="https://i.pravatar.cc/150?img=68" alt="Ahmet Hoca">
             <span class="branch-badge">Matematik</span>
           </div>
           <div class="t-info">
             <h4>Ahmet Yılmaz</h4>
-            <p>15 Yıl Deneyim • ODTÜ Mezunu</p>
-            <small>"Matematiği sevdiren adam" olarak bilinir. Geometri özel ilgi alanı.</small>
+            <p>Sayısalın Piri</p>
+            <small>Geometri ve Matematik ondan sorulur. "Yapamıyorum" kelimesini kabul etmez.</small>
           </div>
         </div>
 
         <div class="t-card">
           <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=44" alt="Hoca">
+            <img src="https://i.pravatar.cc/150?img=44" alt="Selin Hoca">
             <span class="branch-badge">Fizik</span>
           </div>
           <div class="t-info">
             <h4>Selin Demir</h4>
-            <p>10 Yıl Deneyim • Boğaziçi Mezunu</p>
-            <small>Yeni nesil soruların ustası. Deneylerle fizik anlatımı.</small>
+            <p>Fen Bilimleri</p>
+            <small>Fizik formüllerini ezberletmez, mantığını kavratır. Yeni nesil soruların ustası.</small>
           </div>
         </div>
 
         <div class="t-card">
           <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=33" alt="Hoca">
+            <img src="https://i.pravatar.cc/150?img=33" alt="Caner Hoca">
             <span class="branch-badge">Koçluk</span>
           </div>
           <div class="t-info">
             <h4>Caner Erkin</h4>
-            <p>Eğitim Koçu • Psikolog</p>
-            <small>Sınav stratejisi ve mental hazırlık süreçlerini yönetir.</small>
+            <p>Sınav Koçu</p>
+            <small>Stres yönetimi, program hazırlama ve taktiksel çalışma koçun.</small>
           </div>
         </div>
       </div>
@@ -133,23 +135,21 @@
   <footer id="iletisim">
     <div class="container footer-content">
       <div>
-        <h3>Zihin Akademisi</h3>
-        <p>Geleceğinizi şansa bırakmayın.</p>
+        <h3>Zihin Atölyesi</h3>
+        <p>Birlikte Başaracağız.</p>
       </div>
       <div style="text-align:right;">
-        <p>📍 İzmir / Türkiye</p>
-        <p>📞 0555 123 45 67</p>
-        <p>✉️ bilgi@zihinakademisi.com</p>
+        <p>📍 İzmir</p>
+        <p>✉️ zihinatolye@gmail.com  </p>
+        </p>    05426726750 </p>
       </div>
     </div>
   </footer>
 
   <script>
-    
     document.getElementById('btnLogin').addEventListener('click', () => {
-      // Önceki seçimi (Öğrenci/Veli vb.) unut ki tekrar sorsun
+      // Hafızayı temizle ki her girişte kime gireceğini sorsun
       localStorage.removeItem("roleChoice"); 
-      // Sonra panele git
       window.location.href = "panel.html";
     });
   </script>

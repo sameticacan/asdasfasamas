@@ -337,7 +337,7 @@ function renderRoleSelect(){
     <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center;">
       <div class="card" style="text-align:center; padding:40px;">
         <div class="brand" style="justify-content:center; font-size:32px; margin-bottom:10px;">
-          <span class="dot"></span>Zihin Akademisi
+          <span class="dot"></span>Zihin Atölyesi
         </div>
         <p style="color:var(--muted); margin-bottom:40px;">Lütfen giriş yapmak istediğiniz paneli seçiniz.</p>
         
@@ -589,12 +589,14 @@ function renderTeacherApp(hash){
 function renderAdminHub(hash){
   const nav = [
     {hash:"home", label:"Admin Hub"},
+    {hash:"enrollments", label:"Tüm Kayıtlar"}, // <-- YENİ EKLENDİ
     {hash:"teachers", label:"Öğretmenler"},
     {hash:"catalog", label:"Ders Kataloğu"},
     {hash:"reviews", label:"Yorumlar"},
     {hash:"panel", label:"Yönetim (PIN)"}
   ];
 
+  if(hash === "enrollments") return adminEnrollments(nav); // <-- YENİ YÖNLENDİRME
   if(hash === "teachers") return adminTeachers(nav);
   if(hash === "catalog") return adminCatalog(nav);
   if(hash === "reviews") return adminReviews(nav);
@@ -2332,6 +2334,147 @@ function buildDefaultSubjects(){
   }
   return rows;
 }
+/* --- YENİ EKLENEN FONKSİYON: TÜM KAYITLARI LİSTELE --- */
+async function adminEnrollments(nav){
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Öğrenci Kayıt Defteri</h2>
+          <p>Sisteme gelen tüm ders talepleri ve onaylı kayıtlar.</p>
+        </div>
+        <button class="btn secondary" id="refreshEnrolls">Yenile</button>
+      </div>
+      <div class="divider"></div>
+      
+      <div class="grid3" style="margin-bottom:15px;">
+        <div>
+          <label>Durum Filtresi</label>
+          <select id="filterStatus">
+            <option value="all">Tümü</option>
+            <option value="requested">Talep (Onay Bekleyen)</option>
+            <option value="active">Aktif (Onaylı)</option>
+          </select>
+        </div>
+        <div>
+           <label>Arama</label>
+           <input class="input" id="searchEnroll" placeholder="Öğrenci adı ara..." />
+        </div>
+      </div>
 
+      <div id="enrollList"><div class="skel" style="width:80%"></div></div>
+    </div>
+  `});
+
+  const listEl = qs("#enrollList");
+  
+  // Verileri Çekelim
+  async function loadData(){
+    listEl.innerHTML = `<div class="skel" style="width:80%"></div>`;
+    
+    // 1. Kayıtları Çek
+    const { data: enrolls, error } = await sb
+      .from("enrollments")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if(error) return listEl.innerHTML = `<div class="lock">Hata: ${esc(error.message)}</div>`;
+    if(!enrolls.length) return listEl.innerHTML = `<div class="lock">Hiç kayıt bulunamadı.</div>`;
+
+    // 2. İlişkili Verileri (Öğrenci Adı, Ders Adı) Çek
+    const userIds = [...new Set(enrolls.map(e => e.user_profile_id))];
+    const subjectIds = [...new Set(enrolls.map(e => e.subject_id))];
+
+    // Profilleri al
+    const { data: profiles } = await sb.from("profiles").select("id, full_name, role").in("id", userIds);
+    const pMap = new Map((profiles||[]).map(p => [p.id, p]));
+
+    // Dersleri al
+    const { data: subjects } = await sb.from("subjects").select("id, name, level").in("id", subjectIds);
+    const sMap = new Map((subjects||[]).map(s => [s.id, s]));
+
+    renderTable(enrolls, pMap, sMap);
+  }
+
+  // Tabloyu Çiz
+  function renderTable(enrolls, pMap, sMap){
+    const statusFilter = qs("#filterStatus").value;
+    const search = qs("#searchEnroll").value.toLowerCase();
+
+    const filtered = enrolls.filter(e => {
+      const p = pMap.get(e.user_profile_id);
+      const name = (p?.full_name || "").toLowerCase();
+      
+      const statusMatch = (statusFilter === "all") || (e.status === statusFilter);
+      const searchMatch = !search || name.includes(search);
+      
+      return statusMatch && searchMatch;
+    });
+
+    const rows = filtered.map(e => {
+      const p = pMap.get(e.user_profile_id);
+      const s = sMap.get(e.subject_id);
+      const date = new Date(e.created_at).toLocaleDateString("tr-TR");
+
+      // Durum rengi
+      let badgeClass = "secondary";
+      let statusText = "Bilinmiyor";
+      if(e.status === "requested") { badgeClass = "warn"; statusText = "Talep Edildi"; }
+      if(e.status === "active") { badgeClass = "green"; statusText = "Aktif"; }
+
+      return `
+        <tr>
+          <td>
+            <b>${esc(p?.full_name || "Silinmiş Üye")}</b>
+            <div><small>${esc(p?.role || "-")}</small></div>
+            ${e.meta?.child_name ? `<div class="badge warn" style="font-size:10px">Öğrenci: ${esc(e.meta.child_name)}</div>` : ""}
+          </td>
+          <td>
+            <b>${esc(s?.name || "Silinmiş Ders")}</b>
+            <div><small>${esc(s?.level || "")}</small></div>
+          </td>
+          <td><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td>${date}</td>
+          <td>
+            ${e.status === 'requested' 
+              ? `<button class="btn green" onclick="approveEnroll('${e.id}')">Onayla</button>` 
+              : `<button class="btn secondary" onclick="cancelEnroll('${e.id}')">İptal</button>`}
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    listEl.innerHTML = `
+      <table class="table">
+        <thead><tr><th>Öğrenci / Veli</th><th>Ders</th><th>Durum</th><th>Tarih</th><th>İşlem</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="5"><div class="lock">Kriterlere uygun kayıt yok.</div></td></tr>`}</tbody>
+      </table>
+    `;
+  }
+
+  // Eventler
+  qs("#refreshEnrolls").addEventListener("click", loadData);
+  qs("#filterStatus").addEventListener("change", loadData);
+  qs("#searchEnroll").addEventListener("input", loadData);
+  
+  // Global Onay Fonksiyonları (HTML string içinden çağırmak için window'a atıyoruz)
+  window.approveEnroll = async (id) => {
+    if(!confirm("Bu kaydı onaylıyor musun?")) return;
+    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", id);
+    if(error) toast("error", error.message);
+    else { toast("success", "Kayıt onaylandı!"); loadData(); }
+  };
+
+  window.cancelEnroll = async (id) => {
+    if(!confirm("Bu kaydı iptal etmek/silmek istediğine emin misin?")) return;
+    const { error } = await sb.from("enrollments").delete().eq("id", id);
+    if(error) toast("error", error.message);
+    else { toast("success", "Kayıt silindi."); loadData(); }
+  };
+
+  // İlk yükleme
+  loadData();
+}
 /* ----------------- NAV: default hash ----------------- */
 if(typeof location !== "undefined" && !location.hash) location.hash = "#home";
