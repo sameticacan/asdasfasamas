@@ -1,20 +1,20 @@
-
-const APP_VERSION = "1.0.2"; // cache-bust takibi için
+const APP_VERSION = "1.1.0"; // Tek sürüm referansı
 const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
 
-const ADMIN_PANEL_PIN = "1234"; // sadece ekstra kapı, asıl güvenlik RLS + admin role.
+const ADMIN_PANEL_PIN = "1234"; // Görsel kilit. Yetkiyi vermez.
 
-const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
-if(!window.supabase){
+if (!window.supabase) {
   alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
 }
-if(!supabaseConfigOk){
+const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
+if (!supabaseConfigOk) {
   alert("Supabase yapılandırması eksik (URL veya ANON KEY boş). Lütfen ortam değişkenlerini kontrol et.");
 }
 const sb = (window.supabase && supabaseConfigOk)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
+
 const $app = document.getElementById("app");
 const $modal = document.getElementById("modal");
 const $backdrop = document.getElementById("modalBackdrop");
@@ -22,38 +22,37 @@ const $modalTitle = document.getElementById("modalTitle");
 const $modalBody = document.getElementById("modalBody");
 const $modalFoot = document.getElementById("modalFoot");
 document.getElementById("modalClose").addEventListener("click", closeModal);
+$backdrop.addEventListener("click", closeModal);
 
 const state = {
-  roleChoice: localStorage.getItem("roleChoice") || "", // "student" | "parent" | "admin"
+  roleChoice: localStorage.getItem("roleChoice") || "",
   session: null,
   user: null,
   profile: null,
-  view: "home",
-  params: {},
   cache: {
     subjects: null,
-    subjectsMeta: { error:null, empty:false },
+    subjectsMeta: { error: null, empty: false },
     packagesBySubject: new Map(),
     teacherSubjects: null,
-      },
+  },
   debugOpen: false,
   lastError: "",
-  };
+};
+
 ensureDebugPanel();
-
-
 init();
 
-async function init(){
-  if(!sb){
+async function init() {
+  if (!sb) {
     $app.innerHTML = `<div class="container"><div class="card"><h2>Supabase bağlantısı yok</h2><p>CDN veya anahtar eksik. İnternetini ve anahtarları kontrol et.</p></div></div>`;
     return;
   }
-  const { data } = await sb.auth.getSession();
-  state.session = data.session || null;
+
+  const { data, error } = await sb.auth.getSession();
+  logSupabase("auth.getSession", { data, error });
+  state.session = data?.session || null;
   state.user = state.session?.user || null;
 
-  // router
   window.addEventListener("hashchange", route);
   sb.auth.onAuthStateChange(async (_event, session) => {
     state.session = session;
@@ -63,73 +62,80 @@ async function init(){
   });
 
   await route();
-  async function init(){
-  // ... mevcut kodlar ...
-  
-  // Test Sorgusu
-  const check = await sb.from("profiles").select("count", { count: "exact", head: true });
-  if(check.error) console.error("❌ Supabase Bağlantı Hatası:", check.error.message);
-  else console.log("✅ Supabase Bağlantısı Başarılı! Ping gitti geldi.");
-
-  // ... mevcut kodlar devam ...
-}
+  await pingSupabase();
 }
 
-function setRoleChoice(role){
+async function pingSupabase() {
+  if (!sb) return;
+  const { error } = await sb.from("profiles").select("count", { count: "exact", head: true });
+  if (error) console.error("❌ Supabase Bağlantı Hatası:", error);
+  else console.log("✅ Supabase bağlantısı çalışıyor (ping)");
+}
+
+function setRoleChoice(role) {
   state.roleChoice = role;
   localStorage.setItem("roleChoice", role);
+  setBodyRoleClass();
 }
 
-function clearRoleChoice(){
+function clearRoleChoice() {
   state.roleChoice = "";
   localStorage.removeItem("roleChoice");
+  setBodyRoleClass();
 }
 
-function isEmailConfirmed(){
-  // Supabase user: email_confirmed_at
+function isEmailConfirmed() {
   return !!state.user?.email_confirmed_at;
 }
 
-function toast(type, msg){
+function logSupabase(action, { data, error, status } = {}) {
+  console.log(`[SB] ${action}`, { status, data, error });
+}
+
+function friendlyPostgrestError(err) {
+  if (!err) return "Bilinmeyen hata";
+  if (err.code === "400") return `İstek hatalı/kolon eksik: ${err.message}`;
+  if (err.code === "401" || err.code === "403") return `Yetki/RLS engeli: ${err.message}`;
+  return err.message || "Sunucu hatası";
+}
+
+function toast(type, msg) {
   const wrap = document.getElementById("toasts");
   const t = document.createElement("div");
   t.className = `toast ${type || ""}`.trim();
   let text = msg;
-  if((msg||"").includes("Failed to fetch")){
+  if ((msg || "").includes("Failed to fetch")) {
     text = `${msg} (ağ/SSL ya da CORS engeli olabilir)`;
   }
   t.textContent = text;
   wrap.appendChild(t);
-  setTimeout(() => t.remove(), 3600);
-  if(type === "error" || type === "warn"){
+  setTimeout(() => t.remove(), 4200);
+  if (type === "error" || type === "warn") {
     setLastError(text);
   }
 }
 
-function openModal(title, bodyHTML, footHTML){
+function openModal(title, bodyHTML, footHTML) {
   $modalTitle.textContent = title || "İşlem";
   $modalBody.innerHTML = bodyHTML || "";
   $modalFoot.innerHTML = footHTML || "";
   $backdrop.classList.remove("hidden");
   $modal.classList.remove("hidden");
 }
-function closeModal(){
+function closeModal() {
   $backdrop.classList.add("hidden");
   $modal.classList.add("hidden");
   $modalTitle.textContent = "";
   $modalBody.innerHTML = "";
   $modalFoot.innerHTML = "";
 }
-$backdrop.addEventListener("click", closeModal);
 
-function qs(sel, root=document){ return root ? root.querySelector(sel) : null; }
-function qsa(sel, root=document){
-  if(!root || !root.querySelectorAll) return [];
-  return Array.from(root.querySelectorAll(sel));
-}
-function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':"&quot;","'":"&#039;"}[m])); }
-function ensureDebugPanel(){
-  if(qs("#debugPanel")) return;
+function qs(sel, root = document) { return root ? root.querySelector(sel) : null; }
+function qsa(sel, root = document) { return (!root || !root.querySelectorAll) ? [] : Array.from(root.querySelectorAll(sel)); }
+function esc(s) { return (s ?? "").toString().replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
+
+function ensureDebugPanel() {
+  if (qs("#debugPanel")) return;
   const box = document.createElement("div");
   box.id = "debugPanel";
   box.className = "debug-panel hidden";
@@ -158,131 +164,125 @@ function ensureDebugPanel(){
   });
 }
 
-function setLastError(msg){
+function setLastError(msg) {
   state.lastError = msg || "";
   updateDebugPanel();
 }
 
-function updateDebugPanel(){
+function updateDebugPanel() {
   const box = qs("#debugPanel");
-  if(!box) return;
+  if (!box) return;
   const body = qs("#debugBody", box);
   const subjectsCount = state.cache.subjects?.length || 0;
-  const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr)=> sum + (arr?.length||0),0);
+  const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr) => sum + (arr?.length || 0), 0);
   body.innerHTML = `
     <div><b>Versiyon:</b> v${APP_VERSION}</div>
     <div><b>Session:</b> ${state.session ? "var" : "yok"}</div>
     <div><b>User:</b> ${esc(state.user?.id || "-")} • ${esc(state.user?.email || "")}</div>
     <div><b>Email doğrulandı:</b> ${isEmailConfirmed() ? "evet" : "hayır"}</div>
+    <div><b>Rol:</b> ${esc(state.profile?.role || "?")}</div>
     <div><b>Son hata:</b> ${esc(state.lastError || "-")}</div>
     <div><b>Ders/Paket:</b> ${subjectsCount} / ${packagesCount}</div>
     <div><b>Subjects meta:</b> ${state.cache.subjectsMeta?.error ? "hata" : state.cache.subjectsMeta?.empty ? "boş" : "ok"}</div>
   `;
-
+  box.classList.toggle("hidden", !state.debugOpen);
 }
 
-function setBodyRoleClass(){
-  document.body.classList.remove("role-student","role-parent","role-admin");
-  if(state.roleChoice === "student") document.body.classList.add("role-student");
-  if(state.roleChoice === "parent") document.body.classList.add("role-parent");
-  if(state.roleChoice === "admin") document.body.classList.add("role-admin");
+function setBodyRoleClass() {
+  document.body.classList.remove("role-student", "role-parent", "role-admin", "role-teacher");
+  if (state.roleChoice === "student") document.body.classList.add("role-student");
+  if (state.roleChoice === "parent") document.body.classList.add("role-parent");
+  if (state.roleChoice === "admin") document.body.classList.add("role-admin");
+  if (state.roleChoice === "teacher") document.body.classList.add("role-teacher");
 }
 
-function activeHash(){
-  const h = location.hash.replace("#","").trim();
-  if(!h) return "home";
-  return h;
+function activeHash() {
+  const h = location.hash.replace("#", "").trim();
+  return h || "home";
 }
 
-/* --- GÜNCELLENMİŞ ROUTE (Admin Pasaportu Ekli) --- */
-async function route(){
+async function route() {
   setBodyRoleClass();
-  const h = activeHash();
   updateDebugPanel();
 
-  // 1. Rol seçilmemişse seçim ekranına at
-  if(!state.roleChoice){
+  if (!state.roleChoice) {
     renderRoleSelect();
     return;
   }
 
-  // 2. Login değilse login ekranına at
-  if(!state.user){
+  if (!state.user) {
     renderAuth(state.roleChoice);
     return;
   }
 
-  // 3. Profil yükle
   await ensureProfileLoaded();
+  const pRole = state.profile?.role;
 
-  const pRole = state.profile?.role || "";
-
-  // --- KRİTİK AYAR: Admin ise her yere girebilsin ---
+  // --- DÜZELTME BAŞLANGICI: Admin Torpili ---
+  // Eğer kullanıcı Admin ise, rol kontrolüne takılmadan her yere girebilsin.
   const isAdmin = (pRole === "admin");
-  
-  if(!isAdmin) {
-    // Admin değilse sıkı denetim yap
-    if(state.roleChoice === "student" && pRole !== "student"){
-      renderRoleMismatch("Bu hesap öğrenci değil. Lütfen çıkış yapıp doğru rolü seç.");
-      return;
-    }
-    if(state.roleChoice === "parent" && pRole !== "parent"){
-      renderRoleMismatch("Bu hesap veli değil. Lütfen çıkış yapıp doğru rolü seç.");
-      return;
-    }
-    // Yönetim paneli kontrolü
-    if(state.roleChoice === "admin" && pRole !== "teacher"){
-       // Admin paneline girmeye çalışıyor ama admin veya hoca değil
-       renderAdminUpgrade();
-       return;
-    }
-  }
 
-  // 4. Sayfaları Göster
-  if(state.roleChoice === "student") return renderStudentApp(h);
-  if(state.roleChoice === "parent") return renderParentApp(h);
-  if(state.roleChoice === "admin"){
-    if(pRole === "teacher") renderTeacherApp(h);
-    else renderAdminHub(h); // Admin Hub
-    return;
+  if (!isAdmin) {
+    // Admin DEĞİLSE sıkı kontrol yap
+    if (state.roleChoice === "student" && pRole !== "student") return renderRoleMismatch("Bu hesap öğrenci değil. Lütfen çıkış yapıp doğru rolü seç.");
+    if (state.roleChoice === "parent" && pRole !== "parent") return renderRoleMismatch("Bu hesap veli değil. Lütfen çıkış yapıp doğru rolü seç.");
+    if (state.roleChoice === "teacher" && pRole !== "teacher") return renderRoleMismatch("Bu hesap öğretmen değil. Çıkış yapıp öğretmen hesabıyla giriş yap.");
+    // Admin paneline admin olmayan girmeye çalışırsa
+    if (state.roleChoice === "admin" && pRole !== "admin") return renderAdminLock(pRole || "-");
   }
+  // --- DÜZELTME BİTİŞİ ---
+
+  if (pRole === "admin") state.debugOpen = true; 
+
+  const h = activeHash();
+  // Admin, öğrenci panelini seçtiyse orayı render etsin (kontrolü geçtik artık)
+  if (state.roleChoice === "student") return renderStudentApp(h);
+  if (state.roleChoice === "parent") return renderParentApp(h);
+  if (state.roleChoice === "teacher") return renderTeacherApp(h);
+  if (state.roleChoice === "admin") return renderAdminHub(h);
 }
 
-/* ----------------- PROFILE ----------------- */
-async function ensureProfileLoaded(){
-  if(state.profile) return;
+async function ensureProfileLoaded() {
+  if (state.profile) return;
+  if (!state.user) return;
 
-  // profiles row get
   const { data: prof, error } = await sb
     .from("profiles")
     .select("*")
     .eq("id", state.user.id)
     .maybeSingle();
 
-  if(error){
+  logSupabase("profiles.select", { data: prof, error });
+
+  if (error) {
     toast("error", "Profil okunamadı: " + error.message);
     state.profile = null;
     return;
   }
 
-  if(prof){
+  if (prof) {
     state.profile = prof;
     updateDebugPanel();
     return;
   }
 
-  // create profile on first login for student/parent flows only
-  // admin/teacher profiles should be created by admin, but if missing we create minimal role from roleChoice
-  const role = (state.roleChoice === "admin") ? "teacher" : state.roleChoice;
-  const full_name = state.user.user_metadata?.full_name || state.user.email?.split("@")[0] || "Kullanıcı";
+  if (state.roleChoice === "admin" || state.roleChoice === "teacher") {
+    toast("error", "Bu rol için profil bulunamadı. Admin tarafından atanmalı.");
+    state.profile = null;
+    return;
+  }
 
+  const role = state.roleChoice;
+  const full_name = state.user.user_metadata?.full_name || state.user.email?.split("@")[0] || "Kullanıcı";
   const { data: ins, error: e2 } = await sb
     .from("profiles")
     .insert([{ id: state.user.id, role, full_name, verified: false, public_name_pref: "anonymous" }])
     .select("*")
     .single();
 
-  if(e2){
+  logSupabase("profiles.insert", { data: ins, error: e2 });
+
+  if (e2) {
     toast("error", "Profil oluşturulamadı: " + e2.message);
     state.profile = null;
     return;
@@ -291,8 +291,7 @@ async function ensureProfileLoaded(){
   updateDebugPanel();
 }
 
-/* ----------------- UI: SHELL ----------------- */
-function shell({ titleRight="", navItems=[] , contentHTML="" }){
+function shell({ titleRight = "", navItems = [], contentHTML = "" }) {
   const navHTML = navItems.map(it => {
     const active = activeHash() === it.hash ? "active" : "";
     return `<a class="${active}" href="#${esc(it.hash)}">${esc(it.label)}</a>`;
@@ -304,8 +303,8 @@ function shell({ titleRight="", navItems=[] , contentHTML="" }){
         <div class="brand">
           <span class="dot"></span>
           <span>KoçTakip</span>
-          <span class="badge ${state.roleChoice === "admin" ? "green" : state.roleChoice === "parent" ? "warn" : "blue"}">
-            ${state.roleChoice === "student" ? "Öğrenci" : state.roleChoice === "parent" ? "Veli" : (state.profile?.role === "admin" ? "Admin" : "Öğretmen")}
+          <span class="badge ${state.roleChoice === "admin" ? "green" : state.roleChoice === "parent" ? "warn" : state.roleChoice === "teacher" ? "blue" : "blue"}">
+            ${state.roleChoice === "student" ? "Öğrenci" : state.roleChoice === "parent" ? "Veli" : state.roleChoice === "teacher" ? "Öğretmen" : "Admin"}
           </span>
         </div>
         <div class="nav">
@@ -313,26 +312,22 @@ function shell({ titleRight="", navItems=[] , contentHTML="" }){
           <button class="btn secondary" id="logoutBtn">Çıkış</button>
         </div>
       </div>
-      <div class="main">
-        ${contentHTML}
-      </div>
+      <div class="main">${contentHTML}</div>
       <div class="footer-note">
-        <div>Fiyatlar: yalnızca <b>email doğrulaması</b> tamamlandıktan sonra görünür. Rol seçimi: çıkış yapmadan değişmez.</div>
+        <div>Versiyon v${APP_VERSION} • Fiyatlar: yalnızca <b>email doğrulaması</b> tamamlandıktan sonra görünür. Rol seçimi: çıkış yapmadan değişmez.</div>
       </div>
     </div>
   `;
 
-  qs("#logoutBtn").addEventListener("click", async () => {
+  const logoutBtn = qs("#logoutBtn");
+  logoutBtn?.addEventListener("click", async () => {
     await safeSignOut();
   });
 }
 
-/* ----------------- ROLE SELECT ----------------- */
-/* 1. ADIM: renderRoleSelect fonksiyonunu bununla değiştir */
-function renderRoleSelect(){
-  // Body temizliği
-  document.body.classList.remove("role-student","role-parent","role-admin");
-  
+function renderRoleSelect() {
+  document.body.classList.remove("role-student", "role-parent", "role-admin", "role-teacher");
+
   $app.innerHTML = `
     <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center;">
       <div class="card" style="text-align:center; padding:40px;">
@@ -340,87 +335,77 @@ function renderRoleSelect(){
           <span class="dot"></span>Zihin Atölyesi
         </div>
         <p style="color:var(--muted); margin-bottom:40px;">Lütfen giriş yapmak istediğiniz paneli seçiniz.</p>
-        
         <div class="grid3">
-          <div class="role-card" id="chooseStudent">
+          <div class="role-card" data-role="student">
             <div style="font-size:40px; margin-bottom:10px;">🎓</div>
             <div class="t">Öğrenci</div>
             <div class="d">Derslerim, ödevlerim ve gelişim grafiğim.</div>
             <button class="btn" style="width:100%; margin-top:15px;">Giriş Yap</button>
           </div>
-
-          <div class="role-card" id="chooseParent">
+          <div class="role-card" data-role="parent">
             <div style="font-size:40px; margin-bottom:10px;">👨‍👩‍👧‍👦</div>
             <div class="t">Veli</div>
             <div class="d">Çocuğumun durumu, raporlar ve ödemeler.</div>
             <button class="btn" style="width:100%; margin-top:15px; border-color:var(--warn); color:var(--warn);">Giriş Yap</button>
           </div>
-
-          <div class="role-card" id="chooseAdmin">
+          <div class="role-card" data-role="teacher">
+            <div style="font-size:40px; margin-bottom:10px;">🧑‍🏫</div>
+            <div class="t">Öğretmen</div>
+            <div class="d">Ders atamaları, görevler ve yorumlar.</div>
+            <button class="btn" style="width:100%; margin-top:15px; border-color:var(--accent); color:var(--accent);">Öğretmen Girişi</button>
+          </div>
+          <div class="role-card" data-role="admin">
             <div style="font-size:40px; margin-bottom:10px;">🚀</div>
             <div class="t">Yönetim</div>
-            <div class="d">Öğretmen ve idari yönetim paneli.</div>
-            <button class="btn" style="width:100%; margin-top:15px; border-color:var(--good); color:var(--good);">Yönetici Girişi</button>
+            <div class="d">Yalnızca admin rolü atanmış hesaplar erişebilir.</div>
+            <button class="btn" style="width:100%; margin-top:15px; border-color:var(--good); color:var(--good);">Admin Girişi</button>
           </div>
         </div>
-
-        <div class="footer-note" style="margin-top:30px;">
-          KoçTakip v${APP_VERSION} • Güvenli Giriş Sistemi
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Tıklama Olayları
-  qs("#chooseStudent").addEventListener("click", () => { setRoleChoice("student"); location.hash="#home"; route(); });
-  qs("#chooseParent").addEventListener("click", () => { setRoleChoice("parent"); location.hash="#home"; route(); });
-  qs("#chooseAdmin").addEventListener("click", () => { setRoleChoice("admin"); location.hash="#home"; route(); });
-}
-/* 2. ADIM: Bu fonksiyonu app.js dosyasına ekle */
-function renderAdminUpgrade(){
-  $app.innerHTML = `
-    <div class="container">
-      <div class="card" style="max-width:500px; margin:50px auto; text-align:center;">
-        <h2 style="color:var(--bad)">Yetki Hatası</h2>
-        <p>Hesabının şu anki rolü: <b style="color:white">${esc(state.profile?.role)}</b></p>
-        <p>Yönetim paneline girmek için yetkiniz yok.</p>
-        <p style="margin-top:20px;">Eğer yöneticiysen, PIN kodunu girerek hesabını yükseltebilirsin:</p>
-        
-        <div class="divider"></div>
-        
-        <label>Admin PIN Kodu</label>
-        <input class="input" id="upgradePin" type="password" placeholder="PIN Giriniz" style="text-align:center; font-size:24px; letter-spacing:8px;">
-        
-        <div class="row spread" style="margin-top:20px;">
-          <button class="btn secondary" id="btnLogout">Çıkış Yap</button>
-          <button class="btn" id="btnUpgrade">Yetkiyi Al</button>
-        </div>
+        <div class="footer-note" style="margin-top:30px;">KoçTakip v${APP_VERSION} • Güvenli Giriş Sistemi</div>
       </div>
     </div>
   `;
 
-  qs("#btnLogout").addEventListener("click", safeSignOut);
-
-  qs("#btnUpgrade").addEventListener("click", async () => {
-    const pin = qs("#upgradePin").value.trim();
-    if(pin === ADMIN_PANEL_PIN){
-      // SİHİRLİ DOKUNUŞ: Veritabanında rolü 'admin' yapıyoruz
-      const { error } = await sb.from("profiles").update({ role: "admin" }).eq("id", state.user.id);
-      if(error){
-        toast("error", "Güncelleme hatası: " + error.message);
-      } else {
-        toast("success", "Tebrikler! Rolün Admin oldu. Sayfa yenileniyor...");
-        setTimeout(() => location.reload(), 1000);
-      }
-    } else {
-      toast("error", "Hatalı PIN! Yetkiniz yok.");
-    }
+  qsa(".role-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const role = card.getAttribute("data-role");
+      setRoleChoice(role);
+      location.hash = "#home";
+      route();
+    });
   });
 }
-/* ----------------- AUTH ----------------- */
-function renderAuth(role){
-  const roleName = role === "student" ? "Öğrenci" : role === "parent" ? "Veli" : "Yönetim";
-  const accentBadge = role === "student" ? "blue" : role === "parent" ? "warn" : "green";
+
+function renderAdminLock(realRole) {
+  shell({
+    navItems: [{ hash: "home", label: "Durum" }],
+    contentHTML: `
+      <div class="card">
+        <h2>Admin Erişimi Kapalı</h2>
+        <p>Bu hesap rolü: <b>${esc(realRole)}</b>. Admin paneline girmek için veritabanında admin rolü atanmış olmalısın.</p>
+        <div class="divider"></div>
+        <button class="btn secondary" id="logoutBtn">Çıkış</button>
+      </div>
+    `
+  });
+}
+
+function renderRoleMismatch(msg) {
+  shell({
+    navItems: [{ hash: "home", label: "Durum" }],
+    contentHTML: `
+      <div class="card">
+        <h2>Erişim Uyumsuzluğu</h2>
+        <p>${esc(msg)}</p>
+        <div class="lock">Rol seçimi kilitli. Doğru rol ile giriş için çıkış yap.</div>
+      </div>
+    `
+  });
+}
+
+function renderAuth(role) {
+  const roleName = role === "student" ? "Öğrenci" : role === "parent" ? "Veli" : role === "teacher" ? "Öğretmen" : "Yönetim";
+  const accentBadge = role === "student" ? "blue" : role === "parent" ? "warn" : role === "teacher" ? "blue" : "green";
 
   $app.innerHTML = `
     <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
@@ -455,67 +440,62 @@ function renderAuth(role){
     </div>
   `;
 
-  // Giriş Yap
-  qs("#loginBtn").addEventListener("click", doLogin);
+  qs("#loginBtn")?.addEventListener("click", doLogin);
   
-  // Şifremi Unuttum
-  qs("#forgotBtn").addEventListener("click", doForgot);
+  qs("#forgotBtn")?.addEventListener("click", doForgot);
 
-  async function doLogin(){
+  async function doLogin() {
     const email = qs("#loginEmail").value.trim();
     const password = qs("#loginPass").value;
     
-    if(!email || !password) return toast("error", "Lütfen bilgileri doldur.");
+    if (!email || !password || !validEmail(email)) return toast("error", "Geçerli email ve şifre giriniz.");
 
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if(error) return toast("error", "Giriş başarısız: " + error.message);
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    logSupabase("auth.signInWithPassword", { data, error });
+    if (error) return toast("error", `Giriş başarısız (${error.status || ""}): ${friendlyPostgrestError(error)}`);
     
     toast("success", "Giriş başarılı, yönlendiriliyor...");
     route(); 
   }
 
-  async function doForgot(){
+  async function doForgot() {
     const email = qs("#loginEmail").value.trim();
-    if(!validEmail(email)) return toast("error", "Şifre sıfırlama linki için lütfen yukarıya email adresinizi yazın.");
+    if (!validEmail(email)) return toast("error", "Şifre sıfırlama linki için lütfen yukarıya email adresinizi yazın.");
     
-    // Güvenli Redirect URL (Sitenin ana sayfası)
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.href 
-    });
-
-    if(error) return toast("error", "Hata: " + error.message);
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+    logSupabase("auth.resetPasswordForEmail", { error });
+    if (error) return toast("error", `Hata (${error.status || ""}): ${friendlyPostgrestError(error)}`);
     toast("success", "Şifre sıfırlama bağlantısı e-mail adresinize gönderildi.");
   }
 }
-async function safeSignOut(){
+async function safeSignOut() {
   clearRoleChoice();
-  if(!sb){
+  if (!sb) {
     state.session = null;
     state.user = null;
     state.profile = null;
     location.hash = "";
     return;
   }
-  try{
+  try {
     const { error: refreshError } = await sb.auth.refreshSession();
-    if(refreshError && refreshError.message && refreshError.message.includes("Failed to fetch")){
-      toast("warn","Bağlantı zayıf: refresh başarısız (çıkış zorlanıyor).");
+    logSupabase("auth.refreshSession", { error: refreshError });
+    if (refreshError && (refreshError.status === 401 || refreshError.status === 403)) {
+      toast("warn", "Oturum tazeleme yetkisiz (çıkış zorlanıyor)");
     }
     let { error } = await sb.auth.signOut({ scope: "global" });
-    if(error && (error.status === 403 || /token/i.test(error.message || ""))){
+    logSupabase("auth.signOut global", { error });
+    if (error && (error.status === 403 || /token/i.test(error.message || ""))) {
       const alt = await sb.auth.signOut({ scope: "local" });
-      if(alt.error){
-        toast("warn", "Yerel oturum kapatma uyarısı: " + alt.error.message);
-      }
-    } else if(error){
-      toast("error","Çıkış hatası: " + error.message);
+      logSupabase("auth.signOut local", { error: alt.error });
+      if (alt.error) toast("warn", "Yerel oturum kapatma uyarısı: " + alt.error.message);
+    } else if (error) {
+      toast("error", "Çıkış hatası: " + error.message);
     }
-  } catch(err){
-    const msg = err?.message || String(err);
-    toast("error","Çıkış tamamlanamadı: " + msg);
+  } catch (err) {
+    toast("error", "Çıkış tamamlanamadı: " + (err?.message || err));
   }
 
-  // sb local storage anahtarı temizle
   const ref = (SUPABASE_URL.split("https://")[1] || "").split(".")[0];
   const key = `sb-${ref}-auth-token`;
   localStorage.removeItem(key);
@@ -524,14 +504,14 @@ async function safeSignOut(){
   state.session = null;
   state.user = null;
   state.profile = null;
-  state.cache = { subjects:null, subjectsMeta:{error:null, empty:false}, packagesBySubject:new Map(), teacherSubjects:null };
+  state.cache = { subjects: null, subjectsMeta: { error: null, empty: false }, packagesBySubject: new Map(), teacherSubjects: null };
   location.hash = "";
-  toast("success", "Çıkış yapıldı.");
+  toast("success", "Çıkış yapıldı (zorlandı).");
   updateDebugPanel();
 }
-function renderRoleMismatch(msg){
+function renderRoleMismatch(msg) {
   shell({
-    navItems: [{hash:"home", label:"Durum"}],
+    navItems: [{ hash: "home", label: "Durum" }],
     contentHTML: `
       <div class="card">
         <h2>Erişim Uyumsuzluğu</h2>
@@ -543,82 +523,82 @@ function renderRoleMismatch(msg){
 }
 
 /* ----------------- STUDENT APP ----------------- */
-function renderStudentApp(hash){
+function renderStudentApp(hash) {
   const nav = [
-    {hash:"home", label:"Panel"},
-    {hash:"catalog", label:"Dersler"},
-    {hash:"my", label:"Derslerim"},
-    {hash:"progress", label:"İlerleme"},
-    {hash:"messages", label:"Notlar"}
+    { hash: "home", label: "Panel" },
+    { hash: "catalog", label: "Dersler" },
+    { hash: "my", label: "Derslerim" },
+    { hash: "progress", label: "İlerleme" },
+    { hash: "messages", label: "Notlar" }
   ];
 
-  if(hash === "catalog") return studentCatalog(nav);
-  if(hash === "my") return studentMySubjects(nav);
-  if(hash === "progress") return studentProgress(nav);
-  if(hash === "messages") return studentMessages(nav);
+  if (hash === "catalog") return studentCatalog(nav);
+  if (hash === "my") return studentMySubjects(nav);
+  if (hash === "progress") return studentProgress(nav);
+  if (hash === "messages") return studentMessages(nav);
   return studentHome(nav);
 }
 
-function renderParentApp(hash){
+function renderParentApp(hash) {
   const nav = [
-    {hash:"home", label:"Özet"},
-    {hash:"catalog", label:"Dersler"},
-    {hash:"my", label:"Takip"},
-    {hash:"reports", label:"Rapor"},
-    {hash:"notes", label:"Notlar"}
+    { hash: "home", label: "Özet" },
+    { hash: "catalog", label: "Dersler" },
+    { hash: "my", label: "Takip" },
+    { hash: "reports", label: "Rapor" },
+    { hash: "notes", label: "Notlar" }
   ];
 
-  if(hash === "catalog") return parentCatalog(nav);
-  if(hash === "my") return parentMy(nav);
-  if(hash === "reports") return parentReports(nav);
-  if(hash === "notes") return parentNotes(nav);
+  if (hash === "catalog") return parentCatalog(nav);
+  if (hash === "my") return parentMy(nav);
+  if (hash === "reports") return parentReports(nav);
+  if (hash === "notes") return parentNotes(nav);
   return parentHome(nav);
 }
 
-function renderTeacherApp(hash){
+function renderTeacherApp(hash) {
   const nav = [
-    {hash:"home", label:"Öğretmen Paneli"},
-    {hash:"subjects", label:"Derslerim"},
-    {hash:"reviews", label:"Puanlar"}
+    { hash: "home", label: "Öğretmen Paneli" },
+    { hash: "subjects", label: "Derslerim" },
+    { hash: "reviews", label: "Puanlar" }
   ];
-  if(hash === "subjects") return teacherSubjects(nav);
-  if(hash === "reviews") return teacherReviews(nav);
+  if (hash === "subjects") return teacherSubjects(nav);
+  if (hash === "reviews") return teacherReviews(nav);
   return teacherHome(nav);
 }
 
-function renderAdminHub(hash){
+function renderAdminHub(hash) {
   const nav = [
-    {hash:"home", label:"Admin Hub"},
-    {hash:"enrollments", label:"Tüm Kayıtlar"}, // <-- YENİ EKLENDİ
-    {hash:"teachers", label:"Öğretmenler"},
-    {hash:"catalog", label:"Ders Kataloğu"},
-    {hash:"reviews", label:"Yorumlar"},
-    {hash:"panel", label:"Yönetim (PIN)"}
+    { hash: "home", label: "Admin Hub" },
+    { hash: "enrollments", label: "Tüm Kayıtlar" },
+    { hash: "teachers", label: "Öğretmenler" },
+    { hash: "catalog", label: "Ders Kataloğu" },
+    { hash: "reviews", label: "Yorumlar" },
+    { hash: "panel", label: "Yönetim (PIN)" }
   ];
 
-  if(hash === "enrollments") return adminEnrollments(nav); // <-- YENİ YÖNLENDİRME
-  if(hash === "teachers") return adminTeachers(nav);
-  if(hash === "catalog") return adminCatalog(nav);
-  if(hash === "reviews") return adminReviews(nav);
-  if(hash === "panel") return adminPanel(nav);
+  if (hash === "enrollments") return adminEnrollments(nav);
+  if (hash === "teachers") return adminTeachers(nav);
+  if (hash === "catalog") return adminCatalog(nav);
+  if (hash === "reviews") return adminReviews(nav);
+  if (hash === "panel") return adminPanel(nav);
   return adminHome(nav);
 }
 
 /* ----------------- COMMON DATA ----------------- */
-async function fetchSubjects(){
-  if(state.cache.subjects) return state.cache.subjects;
-  state.cache.subjectsMeta = { error:null, empty:false };
-  const { data, error } = await sb
+async function fetchSubjects() {
+  if (state.cache.subjects) return state.cache.subjects;
+  state.cache.subjectsMeta = { error: null, empty: false };
+  const { data, error, status } = await sb
     .from("subjects")
     .select("*")
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-
-  if(error){
+  logSupabase("subjects.select", { data, error, status });
+  if (error) {
     state.cache.subjectsMeta.error = error;
     setLastError(error.message);
-    toast("error","Dersler alınamadı: " + friendlyPostgrestError(error));
+    toast("error", "Dersler alınamadı: " + friendlyPostgrestError(error));
     return [];
   }
   state.cache.subjects = data || [];
@@ -626,41 +606,39 @@ async function fetchSubjects(){
   updateDebugPanel();
   return state.cache.subjects;
 }
-function resetCatalogCache(){
+function resetCatalogCache() {
   state.cache.subjects = null;
-  state.cache.subjectsMeta = { error:null, empty:false };
-  const rows = data || [];
-  state.cache.packagesBySubject.set(subject_id, rows)
+  state.cache.subjectsMeta = { error: null, empty: false };
+  state.cache.packagesBySubject.clear();
   updateDebugPanel();
 }
-async function fetchPackages(subject_id){
-  if(state.cache.packagesBySubject.has(subject_id)) return state.cache.packagesBySubject.get(subject_id);
+async function fetchPackages(subject_id) {
+  if (state.cache.packagesBySubject.has(subject_id)) return state.cache.packagesBySubject.get(subject_id);
 
-  const { data, error } = await sb
+  const { data, error, status } = await sb
     .from("subject_packages")
     .select("*")
     .eq("subject_id", subject_id)
     .order("price_try", { ascending: true });
-
-  if(error){
+  logSupabase("subject_packages.select", { data, error, status });
+  if (error) {
     setLastError(error.message);
-    toast("error","Paketler alınamadı: " + friendlyPostgrestError(error));
+    toast("error", "Paketler alınamadı: " + friendlyPostgrestError(error));
     return [];
   }
   state.cache.packagesBySubject.set(subject_id, data || []);
-  return data || [];
   updateDebugPanel();
-  return state.cache.packagesBySubject.get(subject_id);
+  return data || [];
 }
 
-async function fetchTeacherLinksForSubject(subject_id){
+async function fetchTeacherLinksForSubject(subject_id) {
   // teacher_subjects + profiles + teachers (ayrı sorgular)
   const { data: links, error } = await sb
     .from("teacher_subjects")
     .select("teacher_profile_id, subject_id")
     .eq("subject_id", subject_id);
-
-  if(error) return [];
+  logSupabase("teacher_subjects.select", { data: links, error });
+  if (error) return [];
 
   const ids = [...new Set((links||[]).map(x=>x.teacher_profile_id))].filter(Boolean);
   if(!ids.length) return [];
@@ -669,7 +647,6 @@ async function fetchTeacherLinksForSubject(subject_id){
     .from("profiles")
     .select("id, full_name, role")
     .in("id", ids);
-
   const { data: teachers } = await sb
     .from("teachers")
     .select("profile_id, bio, photo_url")
@@ -692,7 +669,7 @@ async function fetchTeacherRating(teacher_profile_id){
     .select("rating, is_hidden")
     .eq("teacher_profile_id", teacher_profile_id)
     .eq("is_hidden", false);
-
+  logSupabase("reviews.select.rating", { data, error });
   if(error) return { avg: null, count: 0 };
   const rows = (data||[]).filter(r => !r.is_hidden);
   const count = rows.length;
@@ -742,7 +719,7 @@ async function studentHome(nav){
 
   shell({ navItems: nav, contentHTML });
 
-  qs("#addStudyLogBtn").addEventListener("click", () => {
+  qs("#addStudyLogBtn")?.addEventListener("click", () => {
     openModal("Çalışma Kaydı", `
       <label>Bugün ne yaptın?</label>
       <textarea class="input" id="studyNote" placeholder="Örn: Problemler 40 dk, deneme analizi 15 dk..."></textarea>
@@ -753,7 +730,7 @@ async function studentHome(nav){
       <button class="btn" id="saveStudyLog">Kaydet</button>
     `);
     setTimeout(() => {
-      qs("#saveStudyLog").addEventListener("click", () => {
+      qs("#saveStudyLog")?.addEventListener("click", () => {
         closeModal();
         toast("success","Kaydedildi (MVP: lokal).");
       });
@@ -766,10 +743,11 @@ async function studentHome(nav){
 
 async function fillStudentKPIsAndTasks(){
   // enrollments
-  const { data: enrolls } = await sb
+  const { data: enrolls, error } = await sb
     .from("enrollments")
     .select("id,status,created_at")
     .eq("user_profile_id", state.profile.id);
+  logSupabase("enrollments.select.student", { data: enrolls, error });
 
   const active = (enrolls||[]).filter(e => e.status === "active").length;
   const req = (enrolls||[]).filter(e => e.status === "requested").length;
@@ -779,11 +757,12 @@ async function fillStudentKPIsAndTasks(){
   let tasksTodayHTML = "";
   if(enrolls?.length){
     const enrollIds = enrolls.map(e=>e.id);
-    const { data: tasks } = await sb
+    const { data: tasks, error: tErr } = await sb
       .from("tasks")
       .select("*")
       .in("enrollment_id", enrollIds)
       .order("due_date", { ascending: true });
+    logSupabase("tasks.select.student", { data: tasks, error: tErr });
 
     const today = new Date();
     const ymd = today.toISOString().slice(0,10);
@@ -819,6 +798,7 @@ async function fillStudentKPIsAndTasks(){
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-task");
       const { error } = await sb.from("tasks").update({ completed: true }).eq("id", id);
+      logSupabase("tasks.update.complete", { error });
       if(error) return toast("error","Görev güncellenemedi: " + error.message);
       toast("success","Görev tamamlandı.");
       await fillStudentKPIsAndTasks();
@@ -882,13 +862,10 @@ async function studentCatalog(nav){
   const subjects = await fetchSubjects();
   const meta = state.cache.subjectsMeta || {};
   const listEl = qs("#catalogList");
-  const btnRefresh = qs("#catalogRefresh");
-  if(btnRefresh){
-    btnRefresh.addEventListener("click", async () => {
-      resetCatalogCache();
-      await studentCatalog(nav);
-    });
-  }
+  qs("#catalogRefresh")?.addEventListener("click", async () => {
+    resetCatalogCache();
+    await studentCatalog(nav);
+  });
 
   if(meta.error){
     listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(meta.error.message || "bilinmiyor")}</div>`;
@@ -1037,10 +1014,11 @@ async function openSubjectDetailModal(subjectId, viewer){
         status: "requested",
         meta
       }]);
-      if(error) return toast("error","Talep gönderilemedi: " + error.message);
+      logSupabase("enrollments.insert", { error });
+      if(error) return toast("error","Talep gönderilemedi: " + friendlyPostgrestError(error));
       toast("success","Ders talebin alındı. Admin onayı bekleniyor.");
       closeModal();
-      state.cache.subjects = null;
+      resetCatalogCache();
     });
   });
 
@@ -1072,8 +1050,8 @@ async function askChildMeta(){
       <button class="btn secondary" id="childCancel">İptal</button>
       <button class="btn" id="childOk">Devam</button>
     `);
-    qs("#childCancel").addEventListener("click", () => { closeModal(); resolve({}); });
-    qs("#childOk").addEventListener("click", () => {
+    qs("#childCancel")?.addEventListener("click", () => { closeModal(); resolve({}); });
+    qs("#childOk")?.addEventListener("click", () => {
       const child_name = qs("#childName").value.trim();
       const note = qs("#childNote").value.trim();
       closeModal();
@@ -1090,8 +1068,8 @@ async function openTeacherReviewsModal(teacher_profile_id){
     .eq("teacher_profile_id", teacher_profile_id)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false });
-
-  if(error) return toast("error","Yorumlar alınamadı: " + error.message);
+  logSupabase("reviews.select.modal", { data: reviews, error });
+  if(error) return toast("error","Yorumlar alınamadı: " + friendlyPostgrestError(error));
 
   const rating = await fetchTeacherRating(teacher_profile_id);
   const list = (reviews||[]).map(r => `
@@ -1149,7 +1127,7 @@ async function openAddReviewModal(teacher_profile_id){
     }
   }
 
-  qs("#sendReview").addEventListener("click", async () => {
+  qs("#sendReview")?.addEventListener("click", async () => {
     const comment = qs("#revComment").value.trim();
     const is_anonymous = qs("#revAnon").value === "1";
     if(comment.length < 3) return toast("error","Yorum çok kısa.");
@@ -1161,7 +1139,8 @@ async function openAddReviewModal(teacher_profile_id){
       is_anonymous,
       is_hidden: false
     }]);
-    if(error) return toast("error","Gönderilemedi: " + error.message);
+    logSupabase("reviews.insert", { error });
+    if(error) return toast("error","Gönderilemedi: " + friendlyPostgrestError(error));
     toast("success","Yorum gönderildi.");
     closeModal();
   });
@@ -1184,58 +1163,31 @@ async function studentMySubjects(nav){
     .select("id,status,created_at, subject_id, package_id, meta")
     .eq("user_profile_id", state.profile.id)
     .order("created_at", { ascending: false });
-
-  if(error) return toast("error","Dersler alınamadı: " + error.message);
+  logSupabase("enrollments.select.student.my", { data: enrolls, error });
+  if(error) return toast("error","Dersler alınamadı: " + friendlyPostgrestError(error));
 
   const subjects = await fetchSubjects();
   const subjMap = new Map(subjects.map(s=>[s.id, s]));
 
   const rows = (enrolls||[]).map(e => `
-  <tr>
-    <td>
-      <b>${esc(pMap.get(e.user_profile_id)?.full_name || "Kullanıcı")}</b>
-      <div><small>${esc(pMap.get(e.user_profile_id)?.role || "")}</small></div>
-      ${e.meta?.child_name ? `<div class="badge warn" style="margin-top:6px;">Öğrenci: ${esc(e.meta.child_name)}</div>` : ``}
-    </td>
-    <td>${esc(e.status)}</td>
-    <td><small>${new Date(e.created_at).toLocaleDateString("tr-TR")}</small></td>
-    <td>
-      ${e.status === 'requested' 
-        ? `<button class="btn green" data-approve="${esc(e.id)}">Onayla</button>` 
-        : ``}
-      <button class="btn secondary" data-taskfor="${esc(e.id)}">Görev Ekle</button>
-      <button class="btn secondary" data-viewtasks="${esc(e.id)}">Görevler</button>
-    </td>
-  </tr>
-`).join("");
+    <tr>
+      <td>
+        <b>${esc(subjMap.get(e.subject_id)?.name || "Ders")}</b>
+        <div><small>${esc(levelLabel(subjMap.get(e.subject_id)?.level || ""))}</small></div>
+        ${e.meta?.child_name ? `<div class="badge warn" style="margin-top:6px;">Öğrenci: ${esc(e.meta.child_name)}</div>` : ``}
+      </td>
+      <td>${esc(e.status)}</td>
+      <td><small>${new Date(e.created_at).toLocaleDateString("tr-TR")}</small></td>
+      <td><button class="btn secondary" data-open-en="${esc(e.id)}">Görevler</button></td>
+    </tr>
+  `).join("");
 
-// 2. HTML'i ekrana bas
-qs("#teacherDetail").innerHTML = `
-  <div class="row spread">
-    <div>
-      <div style="font-weight:900">Kayıtlı Öğrenciler</div>
-      <small>Bu dersin altındaki kayıtlar.</small>
-    </div>
-  </div>
-  <div class="divider"></div>
-  <table class="table">
-    <thead><tr><th>Kullanıcı</th><th>Durum</th><th>Tarih</th><th>İşlem</th></tr></thead>
-    <tbody>${rows || `<tr><td colspan="4"><div class="lock">Kayıt yok.</div></td></tr>`}</tbody>
-  </table>
-`;
-
-// 3. Listener'ları HTML basıldıktan SONRA, tırnakların DIŞINA ekle
-qsa("[data-approve]").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const eid = btn.getAttribute("data-approve");
-    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", eid);
-    if(error) toast("error", error.message);
-    else {
-      toast("success", "Öğrenci derse kabul edildi.");
-      await renderTeacherSubjectDetail(subject_id);
-    }
-  });
-});
+  qs("#myEnrolls").innerHTML = `
+    <table class="table">
+      <thead><tr><th>Ders</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="4"><div class="lock">Henüz talep yok.</div></td></tr>`}</tbody>
+    </table>
+  `;
 
   qsa("[data-open-en]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1251,8 +1203,8 @@ async function openEnrollmentTasksModal(enrollment_id, viewer){
     .select("*")
     .eq("enrollment_id", enrollment_id)
     .order("due_date", { ascending: true });
-
-  if(error) return toast("error","Görevler alınamadı: " + error.message);
+  logSupabase("tasks.select.enrollment", { data: tasks, error });
+  if(error) return toast("error","Görevler alınamadı: " + friendlyPostgrestError(error));
 
   const list = (tasks||[]).map(t => `
     <div class="row spread" style="padding:10px 0; border-bottom:1px solid var(--line);">
@@ -1271,7 +1223,8 @@ async function openEnrollmentTasksModal(enrollment_id, viewer){
     btn.addEventListener("click", async () => {
       const tid = btn.getAttribute("data-done");
       const { error: e2 } = await sb.from("tasks").update({ completed:true }).eq("id", tid);
-      if(e2) return toast("error","Güncellenemedi: " + e2.message);
+      logSupabase("tasks.update.done", { error: e2 });
+      if(e2) return toast("error","Güncellenemedi: " + friendlyPostgrestError(e2));
       toast("success","Tamamlandı.");
       closeModal();
     });
@@ -1404,7 +1357,8 @@ async function parentMy(nav){
     .eq("user_profile_id", state.profile.id)
     .order("created_at", { ascending: false });
 
-  if(error) return toast("error","Alınamadı: " + error.message);
+  logSupabase("enrollments.select.parent", { data: enrolls, error });
+  if(error) return toast("error","Alınamadı: " + friendlyPostgrestError(error));
 
   const subjects = await fetchSubjects();
   const subjMap = new Map(subjects.map(s=>[s.id, s]));
@@ -1441,7 +1395,7 @@ async function parentReports(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="card">
       <h2>Rapor</h2>
-      <div class="lock">MVP: Raporlar “görev tamamlanma + son notlar” üzerinden özetlenir. İstersen ayrı reports tablosu ekleriz.</div>
+      <div class="lock">MVP: Raporlar “görev tamamlanma + son notlar” üzerinden özetlenir.</div>
     </div>
   `});
 }
@@ -1487,8 +1441,9 @@ async function teacherSubjects(nav){
     .from("teacher_subjects")
     .select("subject_id")
     .eq("teacher_profile_id", state.profile.id);
+  logSupabase("teacher_subjects.select.teacher", { data: links, error });
 
-  if(error) return toast("error","Dersler alınamadı: " + error.message);
+  if(error) return toast("error","Dersler alınamadı: " + friendlyPostgrestError(error));
 
   const subjects = await fetchSubjects();
   const subjMap = new Map(subjects.map(s=>[s.id, s]));
@@ -1525,12 +1480,14 @@ async function renderTeacherSubjectDetail(subject_id){
     .eq("subject_id", subject_id)
     .order("created_at", { ascending:false });
 
-  if(error) return toast("error","Kayıtlar alınamadı: " + error.message);
+  logSupabase("enrollments.select.teacher.detail", { data: enrolls, error });
+  if(error) return toast("error","Kayıtlar alınamadı: " + friendlyPostgrestError(error));
 
   const userIds = [...new Set((enrolls||[]).map(e=>e.user_profile_id))];
   let profs = [];
   if(userIds.length){
     const r = await sb.from("profiles").select("id,full_name,role").in("id", userIds);
+    logSupabase("profiles.select.byIds", { data: r.data, error: r.error });
     profs = r.data || [];
   }
   const pMap = new Map(profs.map(p=>[p.id,p]));
@@ -1545,22 +1502,11 @@ async function renderTeacherSubjectDetail(subject_id){
       <td>${esc(e.status)}</td>
       <td><small>${new Date(e.created_at).toLocaleDateString("tr-TR")}</small></td>
       <td>
+        ${e.status === "requested" ? `<button class="btn green" data-approve="${esc(e.id)}">Onayla</button>` : ``}
         <button class="btn secondary" data-taskfor="${esc(e.id)}">Görev Ekle</button>
         <button class="btn secondary" data-viewtasks="${esc(e.id)}">Görevler</button>
       </td>
     </tr>
-    qsa("[data-approve]").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const eid = btn.getAttribute("data-approve");
-    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", eid);
-    if(error) toast("error", error.message);
-    else {
-      toast("success", "Öğrenci derse kabul edildi.");
-      // Listeyi yenilemek için fonksiyonu tekrar çağır
-      await renderTeacherSubjectDetail(subject_id);
-    }
-  });
-});
   `).join("");
 
   qs("#teacherDetail").innerHTML = `
@@ -1576,6 +1522,19 @@ async function renderTeacherSubjectDetail(subject_id){
       <tbody>${rows || `<tr><td colspan="4"><div class="lock">Kayıt yok.</div></td></tr>`}</tbody>
     </table>
   `;
+
+  qsa("[data-approve]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const eid = btn.getAttribute("data-approve");
+      const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", eid);
+      logSupabase("enrollments.update.approve", { error });
+      if(error) toast("error", friendlyPostgrestError(error));
+      else {
+        toast("success", "Öğrenci derse kabul edildi.");
+        await renderTeacherSubjectDetail(subject_id);
+      }
+    });
+  });
 
   qsa("[data-taskfor]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1610,7 +1569,7 @@ async function openCreateTaskModal(enrollment_id){
     <button class="btn" id="tSave">Kaydet</button>
   `);
 
-  qs("#tSave").addEventListener("click", async () => {
+  qs("#tSave")?.addEventListener("click", async () => {
     const title = qs("#tTitle").value.trim();
     const notes = qs("#tNotes").value.trim();
     const due_date = qs("#tDue").value ? new Date(qs("#tDue").value).toISOString() : null;
@@ -1619,7 +1578,8 @@ async function openCreateTaskModal(enrollment_id){
     const { error } = await sb.from("tasks").insert([{
       enrollment_id, title, notes, due_date, completed:false, visibility
     }]);
-    if(error) return toast("error","Kaydedilemedi: " + error.message);
+    logSupabase("tasks.insert", { error });
+    if(error) return toast("error","Kaydedilemedi: " + friendlyPostgrestError(error));
     toast("success","Görev eklendi.");
     closeModal();
   });
@@ -1642,7 +1602,8 @@ async function teacherReviews(nav){
     .eq("is_hidden", false)
     .order("created_at", { ascending:false });
 
-  if(error) return toast("error","Alınamadı: " + error.message);
+  logSupabase("reviews.select.teacher", { data: reviews, error });
+  if(error) return toast("error","Alınamadı: " + friendlyPostgrestError(error));
 
   const list = (reviews||[]).map(r => `
     <div style="padding:10px 0; border-bottom:1px solid var(--line);">
@@ -1691,10 +1652,10 @@ async function adminHome(nav){
     </div>
   `});
 
-  qs("#quickSetupBtn").addEventListener("click", async () => {
+  qs("#quickSetupBtn")?.addEventListener("click", async () => {
     await adminQuickSetup();
     toast("success","Kurulum tamamlandı (varsa atlandı).");
-    state.cache.subjects = null;
+    resetCatalogCache();
   });
 
   await fillAdminKPIs();
@@ -1735,8 +1696,8 @@ async function adminCatalog(nav){
     </div>
   `});
 
-  qs("#refreshSub").addEventListener("click", async ()=>{ state.cache.subjects=null; await adminCatalog(nav); });
-  qs("#addSub").addEventListener("click", ()=> openAddSubjectModal());
+  qs("#refreshSub")?.addEventListener("click", async ()=>{ resetCatalogCache(); await adminCatalog(nav); });
+  qs("#addSub")?.addEventListener("click", ()=> openAddSubjectModal());
 
   const subjects = await fetchSubjects();
   const rows = subjects.map(s => `
@@ -1763,9 +1724,10 @@ async function adminCatalog(nav){
       const id = btn.getAttribute("data-toggle");
       const s = subjects.find(x=>x.id===id);
       const { error } = await sb.from("subjects").update({ is_active: !s.is_active }).eq("id", id);
-      if(error) return toast("error","Güncellenemedi: " + error.message);
+      logSupabase("subjects.update.toggle", { error });
+      if(error) return toast("error","Güncellenemedi: " + friendlyPostgrestError(error));
       toast("success","Güncellendi.");
-      state.cache.subjects = null;
+      resetCatalogCache();
       await adminCatalog(nav);
     });
   });
@@ -1795,16 +1757,17 @@ function openAddSubjectModal(){
     <button class="btn" id="saveSub">Kaydet</button>
   `);
 
-  qs("#saveSub").addEventListener("click", async () => {
+  qs("#saveSub")?.addEventListener("click", async () => {
     const name = qs("#sName").value.trim();
     const level = qs("#sLevel").value;
     const sort_order = parseInt(qs("#sOrder").value || "50", 10);
     if(name.length < 3) return toast("error","İsim kısa.");
     const { error } = await sb.from("subjects").insert([{ name, level, is_active:true, sort_order }]);
-    if(error) return toast("error","Eklenemedi: " + error.message);
+    logSupabase("subjects.insert", { error });
+    if(error) return toast("error","Eklenemedi: " + friendlyPostgrestError(error));
     toast("success","Eklendi.");
     closeModal();
-    state.cache.subjects = null;
+    resetCatalogCache();
     location.hash="#catalog";
     route();
   });
@@ -1838,7 +1801,7 @@ async function openManagePackagesModal(subject_id){
     <button class="btn secondary" onclick="closeModal()">Kapat</button>
   `);
 
-  qs("#addPkgBtn").addEventListener("click", () => openAddPackageModal(subject_id, s?.level));
+  qs("#addPkgBtn")?.addEventListener("click", () => openAddPackageModal(subject_id, s?.level));
 
   qsa("[data-saveprice]", $modalBody).forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1849,7 +1812,8 @@ async function openManagePackagesModal(subject_id){
       if(!ok.ok) return toast("error", ok.msg);
 
       const { error } = await sb.from("subject_packages").update({ price_try: price }).eq("id", pid);
-      if(error) return toast("error","Güncellenemedi: " + error.message);
+      logSupabase("subject_packages.update.price", { error });
+      if(error) return toast("error","Güncellenemedi: " + friendlyPostgrestError(error));
       toast("success","Güncellendi.");
       state.cache.packagesBySubject.delete(subject_id);
     });
@@ -1869,13 +1833,13 @@ function openAddPackageModal(subject_id, level){
     <label>Fiyat (₺)</label>
     <input class="input" id="pPrice" type="number" placeholder="Örn: 950" />
     <label>Meta (İngilizce seviyesi için)</label>
-    <input class="input" id="pMeta" placeholder='Örn: {"level":"A1"}' />
+    <input class="input" id="pMeta" placeholder='{"level":"A1"}' />
   `, `
     <button class="btn secondary" onclick="closeModal()">Vazgeç</button>
     <button class="btn" id="pSave">Kaydet</button>
   `);
 
-  qs("#pSave").addEventListener("click", async () => {
+  qs("#pSave")?.addEventListener("click", async () => {
     const title = qs("#pTitle").value.trim();
     const package_code = qs("#pCode").value;
     const price_try = parseInt(qs("#pPrice").value || "0", 10);
@@ -1895,7 +1859,8 @@ function openAddPackageModal(subject_id, level){
     const { error } = await sb.from("subject_packages").insert([{
       subject_id, package_code, title, price_try, meta
     }]);
-    if(error) return toast("error","Eklenemedi: " + error.message);
+    logSupabase("subject_packages.insert", { error });
+    if(error) return toast("error","Eklenemedi: " + friendlyPostgrestError(error));
     toast("success","Eklendi.");
     closeModal();
     state.cache.packagesBySubject.delete(subject_id);
@@ -1946,7 +1911,8 @@ async function adminTeachers(nav){
     .in("role", ["teacher","admin"])
     .order("full_name", { ascending:true });
 
-  if(error) return toast("error","Öğretmenler alınamadı: " + error.message);
+  logSupabase("profiles.select.teachers", { data: teachers, error });
+  if(error) return toast("error","Öğretmenler alınamadı: " + friendlyPostgrestError(error));
 
   qs("#tList").innerHTML = teachers.map(t => `
     <div class="row spread" style="padding:10px 0; border-bottom:1px solid var(--line);">
@@ -2002,11 +1968,13 @@ async function renderTeacherAssign(teacher_profile_id){
       if(exists){
         const link = (links||[]).find(l=>l.subject_id===subject_id);
         const { error } = await sb.from("teacher_subjects").delete().eq("id", link.id);
-        if(error) return toast("error","Kaldırılamadı: " + error.message);
+        logSupabase("teacher_subjects.delete", { error });
+        if(error) return toast("error","Kaldırılamadı: " + friendlyPostgrestError(error));
         toast("success","Kaldırıldı.");
       } else {
         const { error } = await sb.from("teacher_subjects").insert([{ teacher_profile_id, subject_id }]);
-        if(error) return toast("error","Atanamadı: " + error.message);
+        logSupabase("teacher_subjects.insert", { error });
+        if(error) return toast("error","Atanamadı: " + friendlyPostgrestError(error));
         toast("success","Atandı.");
       }
       await renderTeacherAssign(teacher_profile_id);
@@ -2028,13 +1996,15 @@ async function adminReviews(nav){
     .order("created_at", { ascending:false })
     .limit(50);
 
-  if(error) return toast("error","Yorumlar alınamadı: " + error.message);
+  logSupabase("reviews.select.admin", { data: reviews, error });
+  if(error) return toast("error","Yorumlar alınamadı: " + friendlyPostgrestError(error));
 
   // map teacher/reviewer names
   const ids = [...new Set((reviews||[]).flatMap(r => [r.teacher_profile_id, r.reviewer_profile_id]).filter(Boolean))];
   let profs = [];
   if(ids.length){
     const res = await sb.from("profiles").select("id,full_name").in("id", ids);
+    logSupabase("profiles.select.forReviews", { data: res.data, error: res.error });
     profs = res.data || [];
   }
   const pMap = new Map(profs.map(p=>[p.id,p.full_name]));
@@ -2063,7 +2033,8 @@ async function adminReviews(nav){
       const id = btn.getAttribute("data-hide");
       const row = (reviews||[]).find(x=>x.id===id);
       const { error } = await sb.from("reviews").update({ is_hidden: !row.is_hidden }).eq("id", id);
-      if(error) return toast("error","Güncellenemedi: " + error.message);
+      logSupabase("reviews.update.hide", { error });
+      if(error) return toast("error","Güncellenemedi: " + friendlyPostgrestError(error));
       toast("success","Güncellendi.");
       await adminReviews(nav);
     });
@@ -2071,46 +2042,28 @@ async function adminReviews(nav){
 }
 
 async function adminPanel(nav){
-const meta = state.cache.subjectsMeta || {};
-  const listEl = qs("#catalogList");
-  const btnRefresh = qs("#catalogRefresh");
-  if(btnRefresh){
-    btnRefresh.addEventListener("click", async () => {
-      resetCatalogCache();
-      await parentCatalog(nav);
-    });
-  }
-  if(meta.error){
-    listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(meta.error.message || "bilinmiyor")}</div>`;
-    return;
-  } else if(meta.empty){
-    listEl.innerHTML = `<div class="lock">Boş veri (RLS veya henüz eklenmedi).</div>`;
-    return;
-  }
-  // PIN gate
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <h2>Yönetim Paneli</h2>
+      <div class="lock">Açmak için PIN girmen gerekiyor.</div>
+    </div>
+  `});
+
   openModal("PIN Girişi", `
     <label>Yönetim Paneli PIN</label>
     <input class="input" id="pinIn" type="password" placeholder="PIN" />
-    <div class="footer-note">Bu PIN sadece ekstra kapı. Asıl güvenlik: admin role + RLS.</div>
+    <div class="footer-note">Bu PIN sadece ekstra görsel kapı. Asıl güvenlik: admin role + RLS.</div>
   `, `
     <button class="btn secondary" onclick="closeModal()">Vazgeç</button>
     <button class="btn" id="pinOk">Aç</button>
   `);
 
-  qs("#pinOk").addEventListener("click", async () => {
+  qs("#pinOk")?.addEventListener("click", async () => {
     const pin = qs("#pinIn").value.trim();
     if(pin !== ADMIN_PANEL_PIN) return toast("error","PIN yanlış.");
     closeModal();
     await renderAdminPanelInside(nav);
   });
-
-  // Keep shell on page
-  shell({ navItems: nav, contentHTML: `
-    <div class="card">
-      <h2>Yönetim Paneli</h2>
-      <div class="lock">Açmak için PIN girmen gerekiyor (modal açıldı).</div>
-    </div>
-  `});
 }
 
 async function renderAdminPanelInside(nav){
@@ -2123,7 +2076,7 @@ async function renderAdminPanelInside(nav){
       </div>
       <div class="card">
         <h2>Site Bilgileri</h2>
-        <div class="lock">Bu alanda toplam kullanıcı, doğrulama, talepler ve yorumlar görünür.</div>
+        <div class="lock">Toplam kullanıcı, doğrulama, talepler ve yorumlar.</div>
         <div class="divider"></div>
         <div class="kpis" id="siteKPIs">
           <div class="kpi"><div class="v">–</div><div class="k">Kullanıcı</div></div>
@@ -2152,7 +2105,8 @@ async function renderAdminPanelInside(nav){
     .order("created_at", { ascending:false })
     .limit(80);
 
-  if(error) return toast("error","Kullanıcılar alınamadı: " + error.message);
+  logSupabase("profiles.select.admin", { data: users, error });
+  if(error) return toast("error","Kullanıcılar alınamadı: " + friendlyPostgrestError(error));
 
   const rows = users.map(u => `
     <tr>
@@ -2181,7 +2135,8 @@ async function renderAdminPanelInside(nav){
       const id = btn.getAttribute("data-verify");
       const u = users.find(x=>x.id===id);
       const { error } = await sb.from("profiles").update({ verified: !u.verified }).eq("id", id);
-      if(error) return toast("error","Güncellenemedi: " + error.message);
+      logSupabase("profiles.update.verify", { error });
+      if(error) return toast("error","Güncellenemedi: " + friendlyPostgrestError(error));
       toast("success","Güncellendi.");
       await renderAdminPanelInside(nav);
     });
@@ -2193,7 +2148,7 @@ async function renderAdminPanelInside(nav){
       openModal("Manuel Kullanıcı Oluştur", `
         <div class="lock" style="color:var(--warn); margin-bottom:15px;">
           ⚠️ <b>DİKKAT:</b> Tarayıcı tabanlı sistemlerde, yeni bir kullanıcı oluşturduğunda Supabase otomatik olarak o kullanıcının oturumunu açar. 
-          Yani bu işlemi yapınca <b>Admin hesabından çıkış yapılmış olacak</b> ve yeni öğrenci olarak giriş yapmış olacaksın. 
+          Bu işlemi yapınca <b>Admin hesabından çıkış yapılmış olacak</b> ve yeni öğrenci olarak giriş yapmış olacaksın. 
           Tekrar Admin girmek için çıkış yapman gerekir.
         </div>
         <label>Rol Seç</label>
@@ -2214,7 +2169,7 @@ async function renderAdminPanelInside(nav){
       `);
 
       setTimeout(() => {
-        qs("#btnCreateUser").addEventListener("click", async () => {
+        qs("#btnCreateUser")?.addEventListener("click", async () => {
           const role = qs("#newUserRole").value;
           const full_name = qs("#newUserName").value;
           const email = qs("#newUserEmail").value;
@@ -2225,7 +2180,8 @@ async function renderAdminPanelInside(nav){
             options: { data: { full_name } }
           });
 
-          if(error) return toast("error", error.message);
+          logSupabase("auth.signUp.admin", { data, error });
+          if(error) return toast("error", friendlyPostgrestError(error));
 
           // Profil tablosuna da yaz
           if(data.user){
@@ -2250,7 +2206,8 @@ async function renderAdminPanelInside(nav){
 async function adminQuickSetup(){
   // Check if subjects exist
   const { data: existing, error } = await sb.from("subjects").select("id").limit(1);
-  if(error) return toast("error","Kontrol hatası: " + error.message);
+  logSupabase("subjects.check", { data: existing, error });
+  if(error) return toast("error","Kontrol hatası: " + friendlyPostgrestError(error));
   if(existing && existing.length) return; // already set
 
   const subjects = buildDefaultSubjects();
@@ -2259,7 +2216,8 @@ async function adminQuickSetup(){
     .insert(subjects)
     .select("id,name,level");
 
-  if(e2) return toast("error","Ders eklenemedi: " + e2.message);
+  logSupabase("subjects.insert.default", { data: inserted, error: e2 });
+  if(e2) return toast("error","Ders eklenemedi: " + friendlyPostgrestError(e2));
 
   // packages
   const pkgs = [];
@@ -2298,7 +2256,8 @@ async function adminQuickSetup(){
   }
 
   const { error: e3 } = await sb.from("subject_packages").insert(pkgs);
-  if(e3) return toast("error","Paket eklenemedi: " + e3.message);
+  logSupabase("subject_packages.insert.default", { error: e3 });
+  if(e3) return toast("error","Paket eklenemedi: " + friendlyPostgrestError(e3));
 }
 
 function buildDefaultSubjects(){
@@ -2378,8 +2337,9 @@ async function adminEnrollments(nav){
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100);
+    logSupabase("enrollments.select.admin", { data: enrolls, error });
 
-    if(error) return listEl.innerHTML = `<div class="lock">Hata: ${esc(error.message)}</div>`;
+    if(error) return listEl.innerHTML = `<div class="lock">Hata: ${esc(friendlyPostgrestError(error))}</div>`;
     if(!enrolls.length) return listEl.innerHTML = `<div class="lock">Hiç kayıt bulunamadı.</div>`;
 
     // 2. İlişkili Verileri (Öğrenci Adı, Ders Adı) Çek
@@ -2438,8 +2398,8 @@ async function adminEnrollments(nav){
           <td>${date}</td>
           <td>
             ${e.status === 'requested' 
-              ? `<button class="btn green" onclick="approveEnroll('${e.id}')">Onayla</button>` 
-              : `<button class="btn secondary" onclick="cancelEnroll('${e.id}')">İptal</button>`}
+              ? `<button class="btn green" data-approve-en="${e.id}">Onayla</button>` 
+              : `<button class="btn secondary" data-cancel-en="${e.id}">İptal</button>`}
           </td>
         </tr>
       `;
@@ -2451,28 +2411,34 @@ async function adminEnrollments(nav){
         <tbody>${rows || `<tr><td colspan="5"><div class="lock">Kriterlere uygun kayıt yok.</div></td></tr>`}</tbody>
       </table>
     `;
+
+    qsa("[data-approve-en]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-approve-en");
+        const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", id);
+        logSupabase("enrollments.update.admin.approve", { error });
+        if(error) toast("error", friendlyPostgrestError(error));
+        else { toast("success", "Kayıt onaylandı!"); loadData(); }
+      });
+    });
+
+    qsa("[data-cancel-en]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-cancel-en");
+        if(!confirm("Bu kaydı iptal etmek/silmek istediğine emin misin?")) return;
+        const { error } = await sb.from("enrollments").delete().eq("id", id);
+        logSupabase("enrollments.delete.admin", { error });
+        if(error) toast("error", friendlyPostgrestError(error));
+        else { toast("success", "Kayıt silindi."); loadData(); }
+      });
+    });
   }
 
   // Eventler
-  qs("#refreshEnrolls").addEventListener("click", loadData);
-  qs("#filterStatus").addEventListener("change", loadData);
-  qs("#searchEnroll").addEventListener("input", loadData);
+  qs("#refreshEnrolls")?.addEventListener("click", loadData);
+  qs("#filterStatus")?.addEventListener("change", loadData);
+  qs("#searchEnroll")?.addEventListener("input", loadData);
   
-  // Global Onay Fonksiyonları (HTML string içinden çağırmak için window'a atıyoruz)
-  window.approveEnroll = async (id) => {
-    if(!confirm("Bu kaydı onaylıyor musun?")) return;
-    const { error } = await sb.from("enrollments").update({ status: "active" }).eq("id", id);
-    if(error) toast("error", error.message);
-    else { toast("success", "Kayıt onaylandı!"); loadData(); }
-  };
-
-  window.cancelEnroll = async (id) => {
-    if(!confirm("Bu kaydı iptal etmek/silmek istediğine emin misin?")) return;
-    const { error } = await sb.from("enrollments").delete().eq("id", id);
-    if(error) toast("error", error.message);
-    else { toast("success", "Kayıt silindi."); loadData(); }
-  };
-
   // İlk yükleme
   loadData();
 }
