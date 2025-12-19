@@ -1,20 +1,8 @@
-// app.js
-/*  Supabase tabloları (beklenen):
-    profiles(id, role, full_name, created_at, verified, public_name_pref)
-    subjects(id, name, level, is_active, sort_order)
-    subject_packages(id, subject_id, package_code, title, price_try, meta)
-    teachers(id, profile_id, bio, photo_url)
-    teacher_subjects(id, teacher_profile_id, subject_id)
-    enrollments(id, user_profile_id, subject_id, package_id, status, created_at, meta)
-    tasks(id, enrollment_id, title, notes, due_date, completed, visibility)
-    reviews(id, teacher_profile_id, reviewer_profile_id, rating, comment, is_anonymous, is_hidden, created_at)
 
-   RLS notu (özet): admin her şeyi görür; teacher sadece kendi teacher_subjects -> enrollments/tasks;
-   student/parent sadece kendi enrollments/tasks; reviews insert sadece verified=true.
-*/
+const APP_VERSION = "1.0.2"; // cache-bust takibi için
+const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
 
-const SUPABASE_URL = "https://vgszhwqpyzzcxlczuedl.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnc3pod3FweXp6Y3hsY3p1ZWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMDE4NjEsImV4cCI6MjA4MTU3Nzg2MX0.XNTCzfWBJR4WY6S3KxcitO9JaTYD53PnYJwM2v46yGE";
 const ADMIN_PANEL_PIN = "1234"; // sadece ekstra kapı, asıl güvenlik RLS + admin role.
 
 const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
@@ -75,6 +63,16 @@ async function init(){
   });
 
   await route();
+  async function init(){
+  // ... mevcut kodlar ...
+  
+  // Test Sorgusu
+  const check = await sb.from("profiles").select("count", { count: "exact", head: true });
+  if(check.error) console.error("❌ Supabase Bağlantı Hatası:", check.error.message);
+  else console.log("✅ Supabase Bağlantısı Başarılı! Ping gitti geldi.");
+
+  // ... mevcut kodlar devam ...
+}
 }
 
 function setRoleChoice(role){
@@ -101,7 +99,6 @@ function toast(type, msg){
     text = `${msg} (ağ/SSL ya da CORS engeli olabilir)`;
   }
   t.textContent = text;
-  wrap.appendChild(t);
   wrap.appendChild(t);
   setTimeout(() => t.remove(), 3600);
   if(type === "error" || type === "warn"){
@@ -173,6 +170,7 @@ function updateDebugPanel(){
   const subjectsCount = state.cache.subjects?.length || 0;
   const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr)=> sum + (arr?.length||0),0);
   body.innerHTML = `
+    <div><b>Versiyon:</b> v${APP_VERSION}</div>
     <div><b>Session:</b> ${state.session ? "var" : "yok"}</div>
     <div><b>User:</b> ${esc(state.user?.id || "-")} • ${esc(state.user?.email || "")}</div>
     <div><b>Email doğrulandı:</b> ${isEmailConfirmed() ? "evet" : "hayır"}</div>
@@ -181,8 +179,6 @@ function updateDebugPanel(){
     <div><b>Subjects meta:</b> ${state.cache.subjectsMeta?.error ? "hata" : state.cache.subjectsMeta?.empty ? "boş" : "ok"}</div>
   `;
 
-  if(state.roleChoice === "admin") state.debugOpen = true;
-  box.classList.toggle("hidden", !state.debugOpen);
 }
 
 function setBodyRoleClass(){
@@ -198,53 +194,56 @@ function activeHash(){
   return h;
 }
 
+/* --- GÜNCELLENMİŞ ROUTE (Admin Pasaportu Ekli) --- */
 async function route(){
   setBodyRoleClass();
   const h = activeHash();
-  if(state.roleChoice === "admin") state.debugOpen = true;
   updateDebugPanel();
 
+  // 1. Rol seçilmemişse seçim ekranına at
   if(!state.roleChoice){
     renderRoleSelect();
     return;
   }
 
-  // Role seçildi ama login yoksa auth
+  // 2. Login değilse login ekranına at
   if(!state.user){
     renderAuth(state.roleChoice);
     return;
   }
 
-  // profile yükle
+  // 3. Profil yükle
   await ensureProfileLoaded();
 
-  // Role kilidi: seçilen role ile profil role uyuşmalı (admin seçildiyse teacher/admin kabul)
   const pRole = state.profile?.role || "";
-  if(state.roleChoice === "student" && pRole !== "student"){
-    renderRoleMismatch("Bu hesap öğrenci değil. Doğru rol ile giriş yapman gerekiyor.");
-    return;
-  }
-  if(state.roleChoice === "parent" && pRole !== "parent"){
-    renderRoleMismatch("Bu hesap veli değil. Doğru rol ile giriş yapman gerekiyor.");
-    return;
-  }
-  if(state.roleChoice === "admin" && !(pRole === "admin" || pRole === "teacher")){
-    renderRoleMismatch("Bu hesap admin/öğretmen değil.");
-    return;
+
+  // --- KRİTİK AYAR: Admin ise her yere girebilsin ---
+  const isAdmin = (pRole === "admin");
+  
+  if(!isAdmin) {
+    // Admin değilse sıkı denetim yap
+    if(state.roleChoice === "student" && pRole !== "student"){
+      renderRoleMismatch("Bu hesap öğrenci değil. Lütfen çıkış yapıp doğru rolü seç.");
+      return;
+    }
+    if(state.roleChoice === "parent" && pRole !== "parent"){
+      renderRoleMismatch("Bu hesap veli değil. Lütfen çıkış yapıp doğru rolü seç.");
+      return;
+    }
+    // Yönetim paneli kontrolü
+    if(state.roleChoice === "admin" && pRole !== "teacher"){
+       // Admin paneline girmeye çalışıyor ama admin veya hoca değil
+       renderAdminUpgrade();
+       return;
+    }
   }
 
-  // View
-  if(state.roleChoice === "student"){
-    renderStudentApp(h);
-    return;
-  }
-  if(state.roleChoice === "parent"){
-    renderParentApp(h);
-    return;
-  }
+  // 4. Sayfaları Göster
+  if(state.roleChoice === "student") return renderStudentApp(h);
+  if(state.roleChoice === "parent") return renderParentApp(h);
   if(state.roleChoice === "admin"){
     if(pRole === "teacher") renderTeacherApp(h);
-    else renderAdminHub(h);
+    else renderAdminHub(h); // Admin Hub
     return;
   }
 }
@@ -329,171 +328,163 @@ function shell({ titleRight="", navItems=[] , contentHTML="" }){
 }
 
 /* ----------------- ROLE SELECT ----------------- */
+/* 1. ADIM: renderRoleSelect fonksiyonunu bununla değiştir */
 function renderRoleSelect(){
+  // Body temizliği
   document.body.classList.remove("role-student","role-parent","role-admin");
+  
   $app.innerHTML = `
-    <div class="container">
-      <div class="card">
-        <div class="row spread">
-          <div>
-            <div class="brand"><span class="dot"></span><span>KoçTakip</span></div>
-            <p style="margin:10px 0 0;">Tek site, üç ayrı dünya: Öğrenci, Veli, Yönetim. Rolünü seç, içerisi ona göre şekillensin.</p>
-          </div>
-          <span class="badge blue">Supabase</span>
+    <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center;">
+      <div class="card" style="text-align:center; padding:40px;">
+        <div class="brand" style="justify-content:center; font-size:32px; margin-bottom:10px;">
+          <span class="dot"></span>Zihin Akademisi
         </div>
-        <div class="divider"></div>
-        <div class="role-select">
+        <p style="color:var(--muted); margin-bottom:40px;">Lütfen giriş yapmak istediğiniz paneli seçiniz.</p>
+        
+        <div class="grid3">
           <div class="role-card" id="chooseStudent">
+            <div style="font-size:40px; margin-bottom:10px;">🎓</div>
             <div class="t">Öğrenci</div>
-            <div class="d">Günlük plan, ilerleme grafiği, deneme kayıtları, derslere kayıt ve öğretmen notları.</div>
-            <div style="margin-top:12px" class="badge blue">Odak: gelişim + takip</div>
+            <div class="d">Derslerim, ödevlerim ve gelişim grafiğim.</div>
+            <button class="btn" style="width:100%; margin-top:15px;">Giriş Yap</button>
           </div>
+
           <div class="role-card" id="chooseParent">
+            <div style="font-size:40px; margin-bottom:10px;">👨‍👩‍👧‍👦</div>
             <div class="t">Veli</div>
-            <div class="d">Haftalık özet, uyarılar, öğretmen notları ve çocuğun ders sürecini sade bir panelde gör.</div>
-            <div style="margin-top:12px" class="badge warn">Odak: şeffaf rapor</div>
+            <div class="d">Çocuğumun durumu, raporlar ve ödemeler.</div>
+            <button class="btn" style="width:100%; margin-top:15px; border-color:var(--warn); color:var(--warn);">Giriş Yap</button>
           </div>
-          <div class="role-card small" id="chooseAdmin">
-            <div class="t">Admin / Öğretmen</div>
-            <div class="d">Öğretmen panelleri ve yalnız admin için PIN’li yönetim.</div>
-            <div style="margin-top:12px" class="badge green">Odak: yönetim</div>
+
+          <div class="role-card" id="chooseAdmin">
+            <div style="font-size:40px; margin-bottom:10px;">🚀</div>
+            <div class="t">Yönetim</div>
+            <div class="d">Öğretmen ve idari yönetim paneli.</div>
+            <button class="btn" style="width:100%; margin-top:15px; border-color:var(--good); color:var(--good);">Yönetici Girişi</button>
           </div>
         </div>
-        <div class="footer-note">
-          Not: Rol seçimi <b>çıkış yapana kadar</b> kilitli kalır.
+
+        <div class="footer-note" style="margin-top:30px;">
+          KoçTakip v${APP_VERSION} • Güvenli Giriş Sistemi
         </div>
       </div>
     </div>
   `;
+  
+  // Tıklama Olayları
   qs("#chooseStudent").addEventListener("click", () => { setRoleChoice("student"); location.hash="#home"; route(); });
   qs("#chooseParent").addEventListener("click", () => { setRoleChoice("parent"); location.hash="#home"; route(); });
   qs("#chooseAdmin").addEventListener("click", () => { setRoleChoice("admin"); location.hash="#home"; route(); });
 }
-
-/* ----------------- AUTH ----------------- */
-function renderAuth(role){
-  const roleName = role === "student" ? "Öğrenci" : role === "parent" ? "Veli" : "Admin / Öğretmen";
-  const accentBadge = role === "student" ? "blue" : role === "parent" ? "warn" : "green";
-
-  const canSignup = (role === "student" || role === "parent");
-
+/* 2. ADIM: Bu fonksiyonu app.js dosyasına ekle */
+function renderAdminUpgrade(){
   $app.innerHTML = `
     <div class="container">
-      <div class="card">
-        <div class="row spread">
-          <div class="brand"><span class="dot"></span><span>KoçTakip</span></div>
-          <span class="badge ${accentBadge}">${roleName} Girişi</span>
-        </div>
-
-        <div class="grid2" style="margin-top:14px;">
-          <div class="card">
-            <h2>${esc(roleName)} Giriş</h2>
-            <label>Email</label>
-            <input class="input" id="loginEmail" placeholder="ornek@mail.com" />
-            <label>Şifre</label>
-            <input class="input" id="loginPass" type="password" placeholder="En az 8 karakter" />
-            <div class="row" style="margin-top:12px;">
-              <button class="btn" id="loginBtn">Giriş Yap</button>
-              <button class="btn secondary" id="forgotBtn">Şifre Sıfırla</button>
-            </div>
-            <div class="divider"></div>
-            <div class="lock">
-              Fiyatlar ve kayıt işlemleri için email doğrulaması gerekir.
-            </div>
-          </div>
-
-          <div class="card">
-            ${canSignup ? `
-              <h2>Kayıt Ol</h2>
-              <label>Ad Soyad</label>
-              <input class="input" id="suName" placeholder="Ad Soyad" />
-              <label>Email</label>
-              <input class="input" id="suEmail" placeholder="ornek@mail.com" />
-              <label>Şifre</label>
-              <input class="input" id="suPass" type="password" placeholder="En az 8 karakter" />
-              <div class="row" style="margin-top:12px;">
-                <button class="btn" id="signupBtn">Kayıt Ol</button>
-              </div>
-              <div class="footer-note">
-                Kayıt sonrası emailine doğrulama linki gider. Doğrulamadan fiyatlar açılmaz.
-              </div>
-            ` : `
-              <h2>Kayıt Kapalı</h2>
-              <p>Admin/Öğretmen hesapları sadece yönetim tarafından oluşturulur.</p>
-              <div class="lock">Yetkili değilsen çıkış yapıp doğru rol seç.</div>
-            `}
-          </div>
-        </div>
-
-        <div class="footer-note">
-          Rol: <b>${esc(roleName)}</b> seçili. (Rol değiştirmek için çıkış yapman gerekir.)
+      <div class="card" style="max-width:500px; margin:50px auto; text-align:center;">
+        <h2 style="color:var(--bad)">Yetki Hatası</h2>
+        <p>Hesabının şu anki rolü: <b style="color:white">${esc(state.profile?.role)}</b></p>
+        <p>Yönetim paneline girmek için yetkiniz yok.</p>
+        <p style="margin-top:20px;">Eğer yöneticiysen, PIN kodunu girerek hesabını yükseltebilirsin:</p>
+        
+        <div class="divider"></div>
+        
+        <label>Admin PIN Kodu</label>
+        <input class="input" id="upgradePin" type="password" placeholder="PIN Giriniz" style="text-align:center; font-size:24px; letter-spacing:8px;">
+        
+        <div class="row spread" style="margin-top:20px;">
+          <button class="btn secondary" id="btnLogout">Çıkış Yap</button>
+          <button class="btn" id="btnUpgrade">Yetkiyi Al</button>
         </div>
       </div>
     </div>
   `;
 
-  qs("#loginBtn").addEventListener("click", () => doLogin());
-  qs("#forgotBtn").addEventListener("click", () => doForgot());
+  qs("#btnLogout").addEventListener("click", safeSignOut);
 
-  if(canSignup){
-    qs("#signupBtn").addEventListener("click", () => doSignup(role));
-  }
+  qs("#btnUpgrade").addEventListener("click", async () => {
+    const pin = qs("#upgradePin").value.trim();
+    if(pin === ADMIN_PANEL_PIN){
+      // SİHİRLİ DOKUNUŞ: Veritabanında rolü 'admin' yapıyoruz
+      const { error } = await sb.from("profiles").update({ role: "admin" }).eq("id", state.user.id);
+      if(error){
+        toast("error", "Güncelleme hatası: " + error.message);
+      } else {
+        toast("success", "Tebrikler! Rolün Admin oldu. Sayfa yenileniyor...");
+        setTimeout(() => location.reload(), 1000);
+      }
+    } else {
+      toast("error", "Hatalı PIN! Yetkiniz yok.");
+    }
+  });
+}
+/* ----------------- AUTH ----------------- */
+function renderAuth(role){
+  const roleName = role === "student" ? "Öğrenci" : role === "parent" ? "Veli" : "Yönetim";
+  const accentBadge = role === "student" ? "blue" : role === "parent" ? "warn" : "green";
+
+  $app.innerHTML = `
+    <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+      <button class="btn secondary" onclick="clearRoleChoice(); route();" style="margin-bottom:20px;">← Rol Seçimine Dön</button>
+      
+      <div class="card" style="width:100%; max-width:400px; padding:30px;">
+        <div class="row spread" style="margin-bottom:20px;">
+          <div class="brand"><span class="dot"></span><span>Giriş Yap</span></div>
+          <span class="badge ${accentBadge}">${roleName}</span>
+        </div>
+
+        <label>Email Adresi</label>
+        <input class="input" id="loginEmail" placeholder="ornek@mail.com" type="email" />
+        
+        <label>Şifre</label>
+        <input class="input" id="loginPass" type="password" placeholder="••••••••" />
+        
+        <div class="row" style="margin-top:20px;">
+          <button class="btn" id="loginBtn" style="width:100%; padding:12px;">Giriş Yap</button>
+        </div>
+
+        <div style="margin-top:15px; text-align:center;">
+          <button class="btn secondary" id="forgotBtn" style="font-size:13px; border:none; background:transparent;">Şifremi Unuttum</button>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="lock" style="text-align:center; font-size:12px;">
+          <i class="fa-solid fa-lock"></i> Kayıtlar kapalıdır.<br>Yeni kayıt için yönetimle iletişime geçiniz.
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Giriş Yap
+  qs("#loginBtn").addEventListener("click", doLogin);
+  
+  // Şifremi Unuttum
+  qs("#forgotBtn").addEventListener("click", doForgot);
 
   async function doLogin(){
     const email = qs("#loginEmail").value.trim();
     const password = qs("#loginPass").value;
-    if(!validEmail(email)) return toast("error","Geçerli bir email gir.");
-    if(password.length < 8) return toast("error","Şifre en az 8 karakter olmalı.");
+    
+    if(!email || !password) return toast("error", "Lütfen bilgileri doldur.");
 
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if(error) return toast("error", "Giriş başarısız: " + error.message);
-    toast("success","Giriş başarılı.");
-    location.hash = "#home";
+    
+    toast("success", "Giriş başarılı, yönlendiriliyor...");
+    route(); 
   }
 
   async function doForgot(){
     const email = qs("#loginEmail").value.trim();
-    if(!validEmail(email)) return toast("error","Şifre sıfırlamak için geçerli email gir.");
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-    if(error) return toast("error", "Hata: " + error.message);
-    toast("success","Şifre sıfırlama maili gönderildi.");
-  }
-
-  async function doSignup(role){
-    const full_name = qs("#suName").value.trim();
-    const email = qs("#suEmail").value.trim();
-    const password = qs("#suPass").value;
+    if(!validEmail(email)) return toast("error", "Şifre sıfırlama linki için lütfen yukarıya email adresinizi yazın.");
     
-    if(full_name.length < 3) return toast("error","Ad soyad gir.");
-    if(!validEmail(email)) return toast("error","Geçerli bir email gir.");
-    if(password.length < 8) return toast("error","Şifre en az 8 karakter olmalı.");
-    if(error) return toast("error","Kayıt başarısız: " + error.message);
-    const { data, error } = await sb.auth.signUp({
-  email,
-  password,
-  options: {
-    data: { full_name },
-    emailRedirectTo: window.location.origin
-  }
-});
-    if(error) return toast("error","Kayıt başarısız: " + error.message);
+    // Güvenli Redirect URL (Sitenin ana sayfası)
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href 
+    });
 
-    // profiles insert (role)
-    // user id hemen oluşur; bazı projelerde null gelebilir, o zaman login sonrası ensureProfile oluşturur.
-    const uid = data?.user?.id;
-    if(uid){
-      const { error: e2 } = await sb.from("profiles").insert([{
-        id: uid,
-        role,
-        full_name,
-        verified: false,
-        public_name_pref: "anonymous"
-      }]);
-      // RLS engeli varsa sorun değil, ensureProfileLoaded toparlar
-      if(e2) console.warn("profile insert warn:", e2.message);
-    }
-
-    toast("success","Kayıt alındı. Email doğrulama linkini kontrol et.");
+    if(error) return toast("error", "Hata: " + error.message);
+    toast("success", "Şifre sıfırlama bağlantısı e-mail adresinize gönderildi.");
   }
 }
 async function safeSignOut(){
@@ -624,7 +615,8 @@ async function fetchSubjects(){
 
   if(error){
     state.cache.subjectsMeta.error = error;
-    toast("error","Dersler alınamadı: " + error.message);
+    setLastError(error.message);
+    toast("error","Dersler alınamadı: " + friendlyPostgrestError(error));
     return [];
   }
   state.cache.subjects = data || [];
@@ -635,7 +627,8 @@ async function fetchSubjects(){
 function resetCatalogCache(){
   state.cache.subjects = null;
   state.cache.subjectsMeta = { error:null, empty:false };
-  state.cache.packagesBySubject = new Map();
+  const rows = data || [];
+  state.cache.packagesBySubject.set(subject_id, rows)
   updateDebugPanel();
 }
 async function fetchPackages(subject_id){
@@ -648,7 +641,8 @@ async function fetchPackages(subject_id){
     .order("price_try", { ascending: true });
 
   if(error){
-    toast("error","Paketler alınamadı: " + error.message);
+    setLastError(error.message);
+    toast("error","Paketler alınamadı: " + friendlyPostgrestError(error));
     return [];
   }
   state.cache.packagesBySubject.set(subject_id, data || []);
@@ -2121,6 +2115,7 @@ async function renderAdminPanelInside(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="grid2">
       <div class="card">
+      <button class="btn" id="btnAddUserModal">Manuel Üye Ekle</button>
         <h2>Kullanıcı Yönetimi</h2>
         <div id="userList"><div class="skel" style="width:70%"></div></div>
       </div>
@@ -2189,6 +2184,64 @@ async function renderAdminPanelInside(nav){
       await renderAdminPanelInside(nav);
     });
   });
+  // --- MANUEL ÜYE EKLEME (Admin İçin) ---
+  const btnAddUser = qs("#btnAddUserModal");
+  if(btnAddUser) {
+    btnAddUser.addEventListener("click", () => {
+      openModal("Manuel Kullanıcı Oluştur", `
+        <div class="lock" style="color:var(--warn); margin-bottom:15px;">
+          ⚠️ <b>DİKKAT:</b> Tarayıcı tabanlı sistemlerde, yeni bir kullanıcı oluşturduğunda Supabase otomatik olarak o kullanıcının oturumunu açar. 
+          Yani bu işlemi yapınca <b>Admin hesabından çıkış yapılmış olacak</b> ve yeni öğrenci olarak giriş yapmış olacaksın. 
+          Tekrar Admin girmek için çıkış yapman gerekir.
+        </div>
+        <label>Rol Seç</label>
+        <select id="newUserRole">
+          <option value="student">Öğrenci</option>
+          <option value="parent">Veli</option>
+          <option value="teacher">Öğretmen</option>
+        </select>
+        <label>Ad Soyad</label>
+        <input class="input" id="newUserName" placeholder="Ad Soyad" />
+        <label>Email</label>
+        <input class="input" id="newUserEmail" placeholder="Email" />
+        <label>Şifre</label>
+        <input class="input" id="newUserPass" type="text" value="12345678" />
+      `, `
+        <button class="btn secondary" onclick="closeModal()">İptal</button>
+        <button class="btn" id="btnCreateUser">Oluştur</button>
+      `);
+
+      setTimeout(() => {
+        qs("#btnCreateUser").addEventListener("click", async () => {
+          const role = qs("#newUserRole").value;
+          const full_name = qs("#newUserName").value;
+          const email = qs("#newUserEmail").value;
+          const password = qs("#newUserPass").value;
+
+          const { data, error } = await sb.auth.signUp({
+            email, password,
+            options: { data: { full_name } }
+          });
+
+          if(error) return toast("error", error.message);
+
+          // Profil tablosuna da yaz
+          if(data.user){
+             await sb.from("profiles").insert([{ 
+               id: data.user.id, 
+               role: role, 
+               full_name: full_name, 
+               verified: true // Biz ekledik, onaylı olsun
+             }]);
+          }
+
+          toast("success", "Kullanıcı oluşturuldu! (Oturum yeni kullanıcıya geçti)");
+          closeModal();
+          location.reload(); // Sayfayı yenile ki yeni oturumla açılsın
+        });
+      }, 100);
+    });
+  }
 }
 
 /* ----------------- QUICK SETUP ----------------- */
