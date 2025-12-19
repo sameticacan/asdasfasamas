@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="tr">
 <head>
@@ -6,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store" />
   <title>KoçTakip | Öğrenci • Veli • Yönetim</title>
-  <link rel="stylesheet" href="panel.css?v=1.1.0" />
+  <link rel="stylesheet" href="panel.css?v=1.2.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <div id="app"></div>
-    <!-- Modals -->
+  <!-- Modals -->
   <div id="modalBackdrop" class="modal-backdrop hidden"></div>
 
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
@@ -26,9 +25,34 @@
   <!-- Toasts -->
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
+  <!-- WhatsApp Widget -->
+  <div id="contactWidget" class="contact-widget">
+    <button id="contactToggle" class="contact-toggle"><i class="fa-brands fa-whatsapp"></i> Bize Ulaşın</button>
+    <div id="contactPanel" class="contact-panel hidden">
+      <div class="contact-head">
+        <div>
+          <p class="muted">WhatsApp Destek</p>
+          <h4>Öğretmen / Genel</h4>
+        </div>
+        <button class="icon-btn" id="contactClose">✕</button>
+      </div>
+      <p class="muted">Şablon seç, anında mesaj gönder. Öğrenci/veli rolü mesajda görünür.</p>
+      <div class="contact-actions">
+        <button class="btn secondary" data-whatsapp="genel">Genel destek</button>
+        <button class="btn secondary" data-whatsapp="teacher">Öğretmene ulaş</button>
+      </div>
+      <div class="template-box">
+        <p class="muted">Mesaj şablonları</p>
+        <button class="template" data-template="ogrenci">Merhaba, öğrenciyim. Ders: … Seviye: … Hedef: …</button>
+        <button class="template" data-template="veli">Merhaba, veliyim. Öğrencinin sınıfı: … Ders: …</button>
+      </div>
+      <div class="footer-note" id="widgetMeta"></div>
+    </div>
+  </div>
+
   <!-- Supabase v2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
 
-  <script src="app.js?v=1.1.0"></script>
+  <script src="app.js?v=1.2.0"></script>
 </body>
 </html>

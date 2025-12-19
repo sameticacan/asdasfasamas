@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <title>Zihin Atölyesi | Birebir Koçluk ve Özel Ders</title>
-  <link rel="stylesheet" href="style.css?v=1.1.0" />
+  <title>Zihin Atölyesi | 40 Yıllık Eğitim Güvencesi</title>
+  <link rel="stylesheet" href="style.css?v=1.2.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -18,185 +18,440 @@
       </div>
       
       <div class="nav-links desktop-only">
-        <a href="#nasil">Nasıl Çalışıyoruz?</a>
-        <a href="#ekip">Ekip</a>
-        <a href="#iletisim">İletişim</a>
+        <a href="#istatistik">Başarı Rakamları</a>
+        <a href="#nasil">Nasıl Çalışır?</a>
+        <a href="#dersler">Dersler</a>
+        <a href="#ekip">Öğretmenler</a>
+        <a href="#sss">SSS</a>
       </div>
 
-      <button id="btnLogin" class="btn-login">
-        <i class="fa-solid fa-rocket"></i> Panele Giriş Yap
-      </button>
+      <div class="nav-actions">
+        <button id="btnLogin" class="btn-login">
+          <i class="fa-solid fa-rocket"></i> Panele Giriş Yap
+        </button>
+        <button class="btn-ghost" onclick="document.getElementById('ekip').scrollIntoView({behavior:'smooth'})">
+          Öğretmenleri Gör
+        </button>
+      </div>
     </div>
   </nav>
 
   <header class="hero-section">
     <div class="container hero-content">
       <div class="hero-text">
-        <span class="badge-hero"> Sadece Bize Özel</span>
-        <h1>Dershane Değil,<br><span class="text-gradient">Yol Arkadaşlığı</span></h1>
-        <p>Kalabalık sınıflarda kaybolmak yok. Burası bizim alanımız. Birebir ilgi, nokta atışı dersler ve sıkı takip sistemiyle hedeflere birlikte koşuyoruz.</p>
+        <span class="badge-hero">40 yıldır aynı söz: Öğrenci önce gelir</span>
+        <h1>Eğitimde Kurumsal Güvence,<br><span class="text-gradient">Birebir İnsan Dokunuşu</span></h1>
+        <p>Okul + sınav + koçluk üçlüsünü tek panelde birleştiriyoruz. Kurumsal kaliteyi, mahalle öğretmeni sıcaklığıyla harmanlayıp öğrenciyi hedefe taşırız.</p>
         <div class="hero-btns">
-          <button class="btn-primary" onclick="document.getElementById('ekip').scrollIntoView()">Ekibi Gör</button>
-          <button class="btn-outline" onclick="document.getElementById('nasil').scrollIntoView()">Sistem Nasıl?</button>
+          <button class="btn-primary" onclick="document.getElementById('market').scrollIntoView({behavior:'smooth'})">Öğretmenleri İncele</button>
+          <button class="btn-outline" onclick="document.getElementById('nasil').scrollIntoView({behavior:'smooth'})">Sistemi Gör</button>
+        </div>
+        <div class="trust-row">
+          <div class="trust-chip"><i class="fa-solid fa-shield"></i> KVKK korumalı takip</div>
+          <div class="trust-chip"><i class="fa-solid fa-medal"></i> 40 yıl saha deneyimi</div>
+          <div class="trust-chip"><i class="fa-solid fa-heart"></i> %98 memnuniyet sözü</div>
         </div>
       </div>
       
-      <div class="hero-stats">
-        <div class="stat-card">
-          <div class="num">%100</div>
-          <div class="lbl">Birebir İlgi</div>
+      <div class="hero-panel">
+        <div class="panel-head">
+          <div>
+            <p class="muted">Bugün yap</p>
+            <h3>Koçtan Gelenler</h3>
+          </div>
+          <span class="badge">Günlük Plan</span>
         </div>
-        <div class="stat-card">
-          <div class="num">7/24</div>
-          <div class="lbl">WhatsApp & Soru</div>
-        </div>
-        <div class="stat-card">
-          <div class="num">Koç</div>
-          <div class="lbl">Sıkı Takip</div>
+        <ul class="task-list">
+          <li>
+            <div>
+              <p class="task-title">TYT Matematik • 30 dk</p>
+              <small>Problemler / analiz defteri</small>
+            </div>
+            <span class="status on">Başla</span>
+          </li>
+          <li>
+            <div>
+              <p class="task-title">Fizik Denemesi</p>
+              <small>Yanlış 3 konuya geri dön</small>
+            </div>
+            <span class="status wait">Planlandı</span>
+          </li>
+          <li>
+            <div>
+              <p class="task-title">Koç Görüşmesi</p>
+              <small>Whatsapp: Çarşamba 19:00</small>
+            </div>
+            <span class="status on">Takvimde</span>
+          </li>
+        </ul>
+        <div class="mini-summary">
+          <div>
+            <p class="muted">Günlük serin</p>
+            <h4>5 gün</h4>
+          </div>
+          <div>
+            <p class="muted">Haftalık ilerleme</p>
+            <h4>%82</h4>
+          </div>
+          <div>
+            <p class="muted">Koç takibi</p>
+            <h4>Aktif</h4>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
+  <section id="istatistik" class="stats-band">
+    <div class="container stats-grid">
+      <div class="stat-box">
+        <div class="num">28.000+</div>
+        <p>öğrenci mezun etti</p>
+      </div>
+      <div class="stat-box">
+        <div class="num">410+</div>
+        <p>branş öğretmeni ağı</p>
+      </div>
+      <div class="stat-box">
+        <div class="num">34</div>
+        <p>şehirde aktif takip</p>
+      </div>
+      <div class="stat-box">
+        <div class="num">%98</div>
+        <p>memnuniyet skoru</p>
+      </div>
+    </div>
+  </section>
+
   <section id="nasil" class="section bg-dark">
     <div class="container">
       <div class="section-title">
-        <h2>Bizim Tarzımız</h2>
-        <p>Sıkıcı kurallar yok, disiplin ve hedef var.</p>
+        <h2>Nasıl Çalışır?</h2>
+        <p>Tek panel, çift iletişim kanalı, sürekli şeffaflık.</p>
       </div>
-      
-      <div class="features-grid">
-        <div class="feature-box">
-          <i class="fa-solid fa-chart-pie icon"></i>
-          <h3>Dijital Takip (KoçTakip)</h3>
-          <p>Hangi derste ne durumdasın, ödevlerin bitti mi? Hepsini panelden anlık takip ediyoruz. Kaçamak yok!</p>
+      <div class="timeline">
+        <div class="step">
+          <div class="step-icon">1</div>
+          <div>
+            <h3>Hedef & Seviye</h3>
+            <p>Koçla tanışma, hedefin ve mevcut seviyenin net çıkarılması.</p>
+          </div>
         </div>
-        <div class="feature-box">
-          <i class="fa-solid fa-user-graduate icon"></i>
-          <h3>Nokta Atışı Ders</h3>
-          <p>Gereksiz konu anlatımlarıyla boğulmak yok. Eksik olduğun yere odaklanıp netlerini artırıyoruz.</p>
+        <div class="step">
+          <div class="step-icon">2</div>
+          <div>
+            <h3>Panel Açılışı</h3>
+            <p>Öğrenci/Veli girişi, rol seçimi ve doğrulama. KVKK imzaları hazır.</p>
+          </div>
         </div>
-        <div class="feature-box">
-          <i class="fa-solid fa-fire icon"></i>
-          <h3>Motivasyon Ağı</h3>
-          <p>Düştüğün an kaldıran, sınav stresini yönetmeni sağlayan bir ekip ortamı.</p>
+        <div class="step">
+          <div class="step-icon">3</div>
+          <div>
+            <h3>Ders & Öğretmen Eşleşmesi</h3>
+            <p>İhtiyaç dersleri seçilir, uygun öğretmen atanır. WhatsApp’tan anlık temas.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">4</div>
+          <div>
+            <h3>Haftalık Takip</h3>
+            <p>Görevler, deneme analizleri, veliye haftalık rapor. Şeffaf ilerleme.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">5</div>
+          <div>
+            <h3>Başarı Anı</h3>
+            <p>Hedef gerçekleşir, kutlama çağrısı yapılır. Mezun kulübüne katılım.</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="ekip" class="section">
+  <section id="dersler" class="section">
     <div class="container">
       <div class="section-title">
-        <h2>Ekip Arkadaşlarımız</h2>
-        <p>Bu yolda seninle ter dökecek hocalarımız.</p>
+        <h2>Ders Kataloğu</h2>
+        <p>İlkokuldan YKS’ye, İngilizceye kadar net ve rehberli program.</p>
       </div>
-
-      <div class="teacher-scroll">
-        <div class="t-card">
-          <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=68" alt="Ahmet Hoca">
-            <span class="branch-badge">Matematik</span>
-          </div>
-          <div class="t-info">
-            <h4>Ahmet Yılmaz</h4>
-            <p>Sayısalın Piri</p>
-            <small>Geometri ve Matematik ondan sorulur. "Yapamıyorum" kelimesini kabul etmez.</small>
+      <div class="course-grid">
+        <div class="course-card">
+          <h3>İlkokul & Ortaokul</h3>
+          <p>Temel kazanımlar, öğrenmeyi sevdiren materyaller, günlük takip.</p>
+          <div class="pill-row">
+            <span class="pill">Türkçe</span>
+            <span class="pill">Matematik</span>
+            <span class="pill">Fen</span>
           </div>
         </div>
-
-        <div class="t-card">
-          <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=44" alt="Selin Hoca">
-            <span class="branch-badge">Fizik</span>
-          </div>
-          <div class="t-info">
-            <h4>Selin Demir</h4>
-            <p>Fen Bilimleri</p>
-            <small>Fizik formüllerini ezberletmez, mantığını kavratır. Yeni nesil soruların ustası.</small>
+        <div class="course-card highlight">
+          <h3>Lise & TYT-AYT</h3>
+          <p>Net artıran konu-plan takibi, deneme analizi, sınav psikolojisi desteği.</p>
+          <div class="pill-row">
+            <span class="pill">Matematik</span>
+            <span class="pill">Fizik</span>
+            <span class="pill">Kimya</span>
+            <span class="pill">Biyoloji</span>
           </div>
         </div>
-
-        <div class="t-card">
-          <div class="t-img-box">
-            <img src="https://i.pravatar.cc/150?img=33" alt="Caner Hoca">
-            <span class="branch-badge">Koçluk</span>
+        <div class="course-card">
+          <h3>LGS • Hızlı Odak</h3>
+          <p>LGS için zaman yönetimi, yeni nesil soru atölyeleri ve koç desteği.</p>
+          <div class="pill-row">
+            <span class="pill">Deneme Analizi</span>
+            <span class="pill">Takvim</span>
+            <span class="pill">Sınav Simülasyon</span>
           </div>
-          <div class="t-info">
-            <h4>Caner Erkin</h4>
-            <p>Sınav Koçu</p>
-            <small>Stres yönetimi, program hazırlama ve taktiksel çalışma koçun.</small>
+        </div>
+        <div class="course-card">
+          <h3>İngilizce (Öncelikli)</h3>
+          <p>A1-C1 seviye, konuşma klüpleri ve sınav odaklı içerikler.</p>
+          <div class="pill-row">
+            <span class="pill">Konuşma</span>
+            <span class="pill">Yazma</span>
+            <span class="pill">Sınav</span>
           </div>
         </div>
       </div>
     </div>
   </section>
-<section class="section bg-dark">
+
+  <section id="ekip" class="section bg-dark">
     <div class="container">
       <div class="section-title">
-        <h2>Sizden Gelenler</h2>
-        <p>Burada herkesin söz hakkı var. Sansür yok, netler var.</p>
+        <h2>Öğretmen Kadrosu</h2>
+        <p>40 yıllık marka güvencesiyle seçilmiş, sahada kanıtlı eğitmenler.</p>
       </div>
 
-      <div class="features-grid">
-        <div class="feature-box" style="text-align:left;">
-          <div style="font-size:30px; color:var(--accent); margin-bottom:15px;">❝</div>
-          <p style="font-style:italic; margin-bottom:15px;">"Matematikte kalem oynatamıyordum, Ahmet Hoca ile sıfırdan başladık. Şimdi denemelerde geometri çözmeye başladım, şaka gibi."</p>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="font-weight:bold; color:#0f172a;">Berke K.</div>
-            <span style="font-size:12px; color:var(--muted);">• 12. Sınıf</span>
+      <div class="slider" id="teacherSlider">
+        <div class="slide-card">
+          <div class="slide-head">
+            <img src="https://i.pravatar.cc/150?img=11" alt="Matematik" />
+            <div>
+              <h4>Ahmet Yıldırım</h4>
+              <p>Matematik | 15 yıl</p>
+            </div>
+          </div>
+          <p>Net sıçratmak için günlük mikro görevler ve deneme analiziyle ilerler.</p>
+          <div class="badge-row">
+            <span class="badge">⭐ 4.9</span>
+            <span class="badge">Koç Takip</span>
           </div>
         </div>
-
-        <div class="feature-box" style="text-align:left;">
-          <div style="font-size:30px; color:var(--accent); margin-bottom:15px;">❝</div>
-          <p style="font-style:italic; margin-bottom:15px;">"Sadece ders değil, koçluk sistemi efsane. Ödevleri panelden takip etmeleri biraz geriyor ama işe yarıyor. Kaçış yok beyler :)"</p>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="font-weight:bold; color:#0f172a;">Zeynep A.</div>
-            <span style="font-size:12px; color:var(--muted);">• Mezun</span>
+        <div class="slide-card">
+          <div class="slide-head">
+            <img src="https://i.pravatar.cc/150?img=24" alt="Fizik" />
+            <div>
+              <h4>Selin Aksoy</h4>
+              <p>Fizik | 12 yıl</p>
+            </div>
+          </div>
+          <p>Formül ezberletmez, soru çözerken düşünme çerçevesini öğretir.</p>
+          <div class="badge-row">
+            <span class="badge">⭐ 4.8</span>
+            <span class="badge">STEM</span>
           </div>
         </div>
-
-        <div class="feature-box" style="text-align:left;">
-          <div style="font-size:30px; color:var(--accent); margin-bottom:15px;">❝</div>
-          <p style="font-style:italic; margin-bottom:15px;">"Fizik dersi ezber sanıyordum, mantığını kavrayınca bulmaca gibi gelmeye başladı. Ortam çok samimi, kasıntı dershane havası yok."</p>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="font-weight:bold; color:#0f172a;">Emre T.</div>
-            <span style="font-size:12px; color:var(--muted);">• 11. Sınıf</span>
+        <div class="slide-card">
+          <div class="slide-head">
+            <img src="https://i.pravatar.cc/150?img=36" alt="İngilizce" />
+            <div>
+              <h4>Elif Kaya</h4>
+              <p>İngilizce | 10 yıl</p>
+            </div>
           </div>
+          <p>Konuşma kulübüyle eşleşir, seviye atlama rotanı haftalık verir.</p>
+          <div class="badge-row">
+            <span class="badge">⭐ 5.0</span>
+            <span class="badge">IELTS/TOEFL</span>
+          </div>
+        </div>
+        <div class="slide-card">
+          <div class="slide-head">
+            <img src="https://i.pravatar.cc/150?img=53" alt="Koç" />
+            <div>
+              <h4>Caner Erdem</h4>
+              <p>Koçluk | 9 yıl</p>
+            </div>
+          </div>
+          <p>Plan, disiplin ve motivasyon üçlüsünü WhatsApp üzerinden sürekli diri tutar.</p>
+          <div class="badge-row">
+            <span class="badge">⭐ 4.95</span>
+            <span class="badge">Haftalık Rapor</span>
+          </div>
+        </div>
+      </div>
+      <div class="slider-dots" id="sliderDots"></div>
+    </div>
+  </section>
+
+  <section id="basari" class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Başarı Hikayeleri</h2>
+        <p>Gerçek plan, gerçek takip, gerçek sonuç.</p>
+      </div>
+      <div class="success-grid">
+        <div class="success-card">
+          <h4>Berfin • YKS</h4>
+          <p>Netler 58→82. Koç görüşmeleri ve deneme analiziyle ilk tercihe yerleşti.</p>
+          <span class="tag">TYT-AYT</span>
+        </div>
+        <div class="success-card">
+          <h4>Mert • LGS</h4>
+          <p>Matematik netlerinde 3 ayda %40 artış. Haftalık geri bildirimle motivasyonunu korudu.</p>
+          <span class="tag">LGS</span>
+        </div>
+        <div class="success-card">
+          <h4>Asya • İngilizce</h4>
+          <p>4 ayda B1→B2. Konuşma kulübü + yazma feedback’iyle özgüven kazandı.</p>
+          <span class="tag">İngilizce</span>
+        </div>
+        <div class="success-card">
+          <h4>Emir • 11. Sınıf</h4>
+          <p>Koç Takip sayesinde düzenli çalışma rutini oturdu, sınıf içi başarı yükseldi.</p>
+          <span class="tag">Düzen</span>
         </div>
       </div>
     </div>
   </section>
+
+  <section id="ilham" class="section bg-dark">
+    <div class="container">
+      <div class="section-title">
+        <h2>İlham Veren Sözler</h2>
+        <p>Çalışmanın değerini hatırlatan döngüsel sözler.</p>
+      </div>
+      <div class="quote-carousel" id="quoteCarousel">
+        <div class="quote-text" id="quoteText"></div>
+        <div class="quote-author" id="quoteAuthor"></div>
+        <div class="quote-dots" id="quoteDots"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="yorumlar" class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Sosyal Kanıt</h2>
+        <p>Velilerden ve öğrencilerden kısa notlar. Hepsi doğrulanmış panel kullanıcıları.</p>
+      </div>
+      <div class="success-grid">
+        <div class="success-card">
+          <h4>“Programım ilk kez bu kadar net.”</h4>
+          <p>Koçun haftalık raporu sayesinde ders dışı vakti de planlamayı öğrendim.</p>
+          <span class="tag">Öğrenci</span>
+        </div>
+        <div class="success-card">
+          <h4>“İlerlemeyi görüyorum.”</h4>
+          <p>Veli panelindeki grafikler, çocuğumun düzenli gittiğini kanıtlıyor.</p>
+          <span class="tag">Veli</span>
+        </div>
+        <div class="success-card">
+          <h4>“İngilizce konuşmaya başladım.”</h4>
+          <p>Konuşma kulübü ve kısa ödevler korkumu aldı, derslerde söz alıyorum.</p>
+          <span class="tag">İngilizce</span>
+        </div>
+        <div class="success-card">
+          <h4>“Geri bildirim hızlı.”</h4>
+          <p>Ödev fotoğrafını atıyorum, aynı gün düzeltme ve not geliyor.</p>
+          <span class="tag">Koç Takip</span>
+        </div>
+        <div class="success-card">
+          <h4>“Disiplin oturdu.”</h4>
+          <p>Günlük 1 konu + 10 soru kuralı bizi taze tuttu, motivasyon düşmedi.</p>
+          <span class="tag">Rutin</span>
+        </div>
+        <div class="success-card">
+          <h4>“Şeffaf iletişim.”</h4>
+          <p>Öğretmen-veli-whatsapp üçgeni sorularımı bekletmeden çözüyor.</p>
+          <span class="tag">Şeffaflık</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="sss" class="section">
     <div class="container">
       <div class="section-title">
-        <h2>Aklına Takılanlar</h2>
-        <p>Sormaya çekindiklerin burada.</p>
+        <h2>Sık Sorulan Sorular</h2>
+        <p>Şeffaflık ilkesiyle en çok merak edilenler.</p>
       </div>
-
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
-        
-        <div class="stat-card" style="text-align:left;">
-          <h4 style="color:#0f172a; margin-bottom:10px;">Dersler nerede yapılıyor?</h4>
-          <p style="font-size:14px; color:var(--muted);">Derslerimiz tercihe göre online (Zoom/Google Meet) veya kararlaştırdığımız çalışma ofisimizde yüz yüze yapılıyor.</p>
+      <div class="accordion" id="faq">
+        <div class="acc-item">
+          <button class="acc-head">Dersler nerede yapılıyor?</button>
+          <div class="acc-body">Online (Zoom/Meet) veya belirlenen ofisimizde yüz yüze. Her ikisi için materyal hazır.</div>
         </div>
-
-        <div class="stat-card" style="text-align:left;">
-          <h4 style="color:#0f172a; margin-bottom:10px;">KoçTakip sistemi nedir?</h4>
-          <p style="font-size:14px; color:var(--muted);">Sana özel açılan panelden ödevlerini, deneme sonuçlarını ve haftalık programını takip ettiğimiz dijital bir sistem.</p>
+        <div class="acc-item">
+          <button class="acc-head">KoçTakip sistemi nasıl işler?</button>
+          <div class="acc-body">Panelden görevleri, deneme sonuçlarını, öğretmen notlarını ve veli raporlarını aynı ekranda görürsün.</div>
         </div>
-
-        <div class="stat-card" style="text-align:left;">
-          <h4 style="color:#0f172a; margin-bottom:10px;">Sadece sınav öğrencisi mi alıyorsunuz?</h4>
-          <p style="font-size:14px; color:var(--muted);">Ağırlıklı olarak LGS ve YKS gruplarıyla çalışıyoruz ama ara sınıflar için de okul takviye programlarımız var.</p>
+        <div class="acc-item">
+          <button class="acc-head">Deneme dersi var mı?</button>
+          <div class="acc-body">İlk 30 dakika tanışma ve seviye tespiti ücretsizdir. Sonrasında hedefe uygun ders planı çıkarılır.</div>
         </div>
-
-        <div class="stat-card" style="text-align:left;">
-          <h4 style="color:#0f172a; margin-bottom:10px;">Deneme dersi var mı?</h4>
-          <p style="font-size:14px; color:var(--muted);">Evet, kimyamızın uyuşup uyuşmadığını görmek için ilk 30 dakika tanışma ve seviye tespiti ücretsizdir.</p>
+        <div class="acc-item">
+          <button class="acc-head">Yorumlar nasıl yönetiliyor?</button>
+          <div class="acc-body">Sadece doğrulanmış kullanıcıların yorumları yayınlanır, gizleme/şikayet yönetimi panelden yapılır.</div>
         </div>
+      </div>
+    </div>
+  </section>
 
+  <section id="gven" class="section bg-dark">
+    <div class="container">
+      <div class="section-title">
+        <h2>Güven ve Şeffaflık</h2>
+        <p>Veri koruması, etik kurallar ve destek çizelgesi her zaman erişilebilir.</p>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-card">
+          <i class="fa-solid fa-shield-halved"></i>
+          <h4>KVKK & Gizlilik</h4>
+          <p>Veri işleme izinleri kayıt aşamasında alınır, her işlem loglanır.</p>
+        </div>
+        <div class="trust-card">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <h4>Etik Sözleşme</h4>
+          <p>Öğretmen performansı ve yorumlar çift taraflı onaydan geçer.</p>
+        </div>
+        <div class="trust-card">
+          <i class="fa-solid fa-clock"></i>
+          <h4>Destek Saatleri</h4>
+          <p>Hafta içi 09.00-22.00, hafta sonu 10.00-20.00 canlı yanıt.</p>
+        </div>
+        <div class="trust-card">
+          <i class="fa-solid fa-handshake"></i>
+          <h4>Şeffaf Raporlama</h4>
+          <p>Her hafta veliye gönderilen net raporlar ve geribildirim.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section id="market" class="section mini-section">
+    <div class="container">
+      <div class="mini-grid">
+        <div>
+          <p class="muted">Günün ipucu</p>
+          <h3>“Bugün 1 konu + 10 soru” disiplini, 1 hafta sonra bile fark yaratır.</h3>
+        </div>
+        <div class="action-box">
+          <h4>Öğretmene Ulaş</h4>
+          <p>İstediğin branşta öğretmeni seç, WhatsApp’ta hazır metinle yaz.</p>
+          <button class="btn-primary" onclick="document.getElementById('btnLogin').click()">Panele Git</button>
+          <p class="muted" style="margin-top:10px;">Destek: destek@zihinatolyesi.com</p>
+        </div>
+        <div>
+          <p class="muted">Hızlı linkler</p>
+          <ul class="quick-links">
+            <li><a href="#istatistik">Başarı Rakamları</a></li>
+            <li><a href="#dersler">Ders Kataloğu</a></li>
+            <li><a href="#ekip">Öğretmenler</a></li>
+            <li><a href="#sss">SSS</a></li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -205,20 +460,122 @@
     <div class="container footer-content">
       <div>
         <h3>Zihin Atölyesi</h3>
-        <p>Birlikte Başaracağız.</p>
+        <p>40 yılın deneyimi, dijital takip gücü.</p>
+        <p>destek@zihinatolyesi.com</p>
+        <p>Hafta içi 09.00-22.00 • Hafta sonu 10.00-20.00</p>
       </div>
-      <div style="text-align:right;">
-        <p>📍 İzmir</p>
-        <p>İletişim</p>
-        <p>✉️ zihinatolye@gmail.com</p>
-        <p>05426726750</p>
+      <div class="footer-cols">
+        <div>
+          <p class="muted">Adres</p>
+          <p>📍 İzmir - İstanbul - Ankara temsilcilikleri</p>
+        </div>
+        <div>
+          <p class="muted">Sosyal</p>
+          <p>LinkedIn / Instagram / YouTube</p>
+        </div>
+        <div>
+          <p class="muted">İletişim</p>
+          <p>✉️ destek@zihinatolyesi.com</p>
+          <p>📞 0 542 672 67 50</p>
+        </div>
       </div>
     </div>
   </footer>
 
+  <div id="contactWidget" class="contact-widget">
+    <button id="contactToggle" class="contact-toggle"><i class="fa-brands fa-whatsapp"></i> Bize Ulaşın</button>
+    <div id="contactPanel" class="contact-panel hidden">
+      <div class="contact-head">
+        <div>
+          <p class="muted">WhatsApp Destek</p>
+          <h4>Canlı yanıt ekibi</h4>
+        </div>
+        <button class="icon-btn" id="contactClose">✕</button>
+      </div>
+      <p class="muted">Öğrenci veya veli olarak hazır metni seçip gönder, dakikalar içinde dönelim.</p>
+      <div class="contact-actions">
+        <button class="btn-secondary" data-whatsapp="genel">Genel destek</button>
+        <button class="btn-secondary" data-whatsapp="teacher">Öğretmene ulaş</button>
+      </div>
+      <div class="template-box">
+        <p class="muted">Mesaj şablonları</p>
+        <button class="template" data-template="ogrenci">Merhaba, öğrenciyim. Ders: … Seviye: … Hedef: …</button>
+        <button class="template" data-template="veli">Merhaba, veliyim. Öğrencinin sınıfı: … Ders: …</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    const WHATSAPP_NUMBER = "05426726750";
+    const quotes = [
+      { text: "Düzenli tekrar etmek, yeteneği alışkanlığa dönüştürür.", author: "Eğitim İlkesi" },
+      { text: "Her gün küçük bir adım, ay sonunda büyük bir fark demektir.", author: "Koç Takip Notu" },
+      { text: "Planı olan öğrenci, stresini yönetir; stres yönetilirse başarı gelir.", author: "Koçluk Rehberi" },
+      { text: "Anlamadığın konuyu öğretmeye çalış; öğretemediğin yerde çalışmaya devam et.", author: "Atölye Mantığı" }
+    ];
+
+    const carousel = document.getElementById('quoteCarousel');
+    const quoteText = document.getElementById('quoteText');
+    const quoteAuthor = document.getElementById('quoteAuthor');
+    const dotsWrap = document.getElementById('quoteDots');
+    let qIndex = 0;
+
+    function renderQuote(idx){
+      const q = quotes[idx];
+      quoteText.textContent = `“${q.text}”`;
+      quoteAuthor.textContent = q.author;
+      dotsWrap.innerHTML = quotes.map((_,i)=>`<span class="dot ${i===idx?'on':''}" data-dot="${i}"></span>`).join('');
+      document.querySelectorAll('[data-dot]').forEach(d=>d.addEventListener('click',()=>{qIndex=parseInt(d.dataset.dot);renderQuote(qIndex);}));
+    }
+    setInterval(()=>{ qIndex = (qIndex + 1) % quotes.length; renderQuote(qIndex); }, 4800);
+    renderQuote(0);
+
+    // slider dots
+    const slides = Array.from(document.querySelectorAll('#teacherSlider .slide-card'));
+    const dots = document.getElementById('sliderDots');
+    dots.innerHTML = slides.map((_,i)=>`<span class="dot ${i===0?'on':''}" data-slide="${i}"></span>`).join('');
+    dots.querySelectorAll('[data-slide]').forEach(dot=>{
+      dot.addEventListener('click',()=>{
+        dots.querySelectorAll('.dot').forEach(d=>d.classList.remove('on'));
+        dot.classList.add('on');
+        slides[parseInt(dot.dataset.slide)].scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+      });
+    });
+
+    // FAQ accordion
+    document.querySelectorAll('.acc-head').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        btn.classList.toggle('open');
+        const body = btn.nextElementSibling;
+        body.style.maxHeight = body.style.maxHeight ? null : body.scrollHeight + 'px';
+      });
+    });
+
+    // WhatsApp panel
+    const panel = document.getElementById('contactPanel');
+    const toggle = document.getElementById('contactToggle');
+    const closeBtn = document.getElementById('contactClose');
+    toggle.addEventListener('click',()=>panel.classList.toggle('hidden'));
+    closeBtn.addEventListener('click',()=>panel.classList.add('hidden'));
+
+    function openWhatsApp(preset){
+      const base = `https://wa.me/${WHATSAPP_NUMBER}`;
+      const text = encodeURIComponent(preset);
+      window.open(`${base}?text=${text}`, '_blank');
+    }
+
+    document.querySelectorAll('[data-whatsapp]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const type = btn.dataset.whatsapp;
+        const msg = type === 'teacher' ? 'Merhaba, öğretmen yönlendirmesi rica ediyorum. Ders: … Seviye: … Hedef: …' : 'Merhaba, genel destek almak istiyorum.';
+        openWhatsApp(msg);
+      });
+    });
+    document.querySelectorAll('.template').forEach(btn=>{
+      btn.addEventListener('click',()=>openWhatsApp(btn.textContent.trim()));
+    });
+
     document.getElementById('btnLogin').addEventListener('click', () => {
-      // Hafızayı temizle ki her girişte kime gireceğini sorsun
       localStorage.removeItem("roleChoice"); 
       window.location.href = "panel.html";
     });

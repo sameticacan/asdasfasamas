@@ -1,4 +1,8 @@
-const APP_VERSION = "1.1.0"; // Tek sürüm referansı
+const APP_VERSION = "1.2.0"; // Tek sürüm referansı
+const BRAND_NAME = "Zihin Atölyesi";
+const SUPPORT_EMAIL = "destek@zihinatolyesi.com";
+const SUPPORT_HOURS = "Hafta içi 09.00-22.00 • Hafta sonu 10.00-20.00";
+const WHATSAPP_NUMBER = "05426726750";
 const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
 
@@ -40,6 +44,7 @@ const state = {
 };
 
 ensureDebugPanel();
+ensureContactWidget();
 init();
 
 async function init() {
@@ -162,6 +167,52 @@ function ensureDebugPanel() {
     state.debugOpen = false;
     updateDebugPanel();
   });
+}
+
+function ensureContactWidget(){
+  const widget = qs("#contactWidget");
+  if(!widget || widget.dataset.ready) return;
+  widget.dataset.ready = "1";
+  const toggle = qs("#contactToggle", widget);
+  const panel = qs("#contactPanel", widget);
+  const closeBtn = qs("#contactClose", widget);
+  const meta = qs("#widgetMeta", widget);
+  if(meta) meta.textContent = `${SUPPORT_EMAIL} • ${SUPPORT_HOURS}`;
+
+  const open = () => panel?.classList.toggle("hidden");
+  const hide = () => panel?.classList.add("hidden");
+  toggle?.addEventListener("click", open);
+  closeBtn?.addEventListener("click", hide);
+
+  function sendTemplate(text){
+    const role = state.profile?.role || state.roleChoice || "ziyaretçi";
+    const uid = state.user?.id ? state.user.id.slice(0,8) : "anon";
+    const full = `${text}\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
+    window.open(url, "_blank");
+    hide();
+  }
+
+  qsa("[data-whatsapp]", widget).forEach(btn => {
+    btn.addEventListener("click", () => {
+      const type = btn.getAttribute("data-whatsapp");
+      const msg = type === "teacher"
+        ? "Merhaba, öğretmen yönlendirmesi rica ediyorum. Ders: … Seviye: … Hedef: …"
+        : "Merhaba, genel destek almak istiyorum.";
+      sendTemplate(msg);
+    });
+  });
+  qsa(".template", widget).forEach(btn => {
+    btn.addEventListener("click", () => sendTemplate(btn.textContent.trim()));
+  });
+}
+
+function openWhatsAppMessage(text){
+  const role = state.profile?.role || state.roleChoice || "ziyaretçi";
+  const uid = state.user?.id ? state.user.id.slice(0,8) : "anon";
+  const full = `${text}\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
+  window.open(url, "_blank");
 }
 
 function setLastError(msg) {
@@ -314,7 +365,8 @@ function shell({ titleRight = "", navItems = [], contentHTML = "" }) {
       </div>
       <div class="main">${contentHTML}</div>
       <div class="footer-note">
-        <div>Versiyon v${APP_VERSION} • Fiyatlar: yalnızca <b>email doğrulaması</b> tamamlandıktan sonra görünür. Rol seçimi: çıkış yapmadan değişmez.</div>
+        <div>${BRAND_NAME} • v${APP_VERSION} • ${SUPPORT_EMAIL} • ${SUPPORT_HOURS}</div>
+        <div>Fiyatlar: yalnızca <b>email doğrulaması</b> tamamlandıktan sonra görünür. Rol seçimi: çıkış yapmadan değişmez.</div>
       </div>
     </div>
   `;
@@ -527,12 +579,14 @@ function renderStudentApp(hash) {
   const nav = [
     { hash: "home", label: "Panel" },
     { hash: "catalog", label: "Dersler" },
+    { hash: "market", label: "Öğretmenler" },
     { hash: "my", label: "Derslerim" },
     { hash: "progress", label: "İlerleme" },
     { hash: "messages", label: "Notlar" }
   ];
 
   if (hash === "catalog") return studentCatalog(nav);
+  if (hash === "market") return renderTeacherMarket(nav, "student");
   if (hash === "my") return studentMySubjects(nav);
   if (hash === "progress") return studentProgress(nav);
   if (hash === "messages") return studentMessages(nav);
@@ -543,12 +597,14 @@ function renderParentApp(hash) {
   const nav = [
     { hash: "home", label: "Özet" },
     { hash: "catalog", label: "Dersler" },
+    { hash: "market", label: "Öğretmenler" },
     { hash: "my", label: "Takip" },
     { hash: "reports", label: "Rapor" },
     { hash: "notes", label: "Notlar" }
   ];
 
   if (hash === "catalog") return parentCatalog(nav);
+  if (hash === "market") return renderTeacherMarket(nav, "parent");
   if (hash === "my") return parentMy(nav);
   if (hash === "reports") return parentReports(nav);
   if (hash === "notes") return parentNotes(nav);
@@ -676,6 +732,153 @@ async function fetchTeacherRating(teacher_profile_id){
   if(!count) return { avg: null, count: 0 };
   const avg = rows.reduce((s,r)=>s+(r.rating||0),0)/count;
   return { avg: Math.round(avg*10)/10, count };
+}
+
+/* ----------------- MARKETPLACE (Student/Parent) ----------------- */
+async function renderTeacherMarket(nav, viewer){
+  const viewerLabel = viewer === "parent" ? "veli" : "öğrenci";
+  shell({ navItems: nav, contentHTML: `
+    <div class="grid2">
+      <div class="card">
+        <div class="row spread">
+          <div>
+            <h2>Öğretmen Marketi</h2>
+            <p>Doğrulanmış eğitmenler, WhatsApp köprüsü ve talep gönderme ekranı.</p>
+          </div>
+          <span class="badge ${state.profile?.verified ? "green" : "warn"}">${state.profile?.verified ? "Doğrulanmış" : "Yorum kilitli"}</span>
+        </div>
+        <div class="divider"></div>
+        <div id="marketList"><div class="skel" style="width:70%"></div></div>
+      </div>
+      <div class="card">
+        <h2>Bugün 1 şey yap</h2>
+        <div class="lock">Bir öğretmen seç, talep gönder ya da WhatsApp’tan merhaba de. Küçük adım, büyük ivme.</div>
+        <div class="divider"></div>
+        <div class="kpis">
+          <div class="kpi"><div class="v">${state.profile?.verified ? "✔" : "–"}</div><div class="k">Doğrulama</div></div>
+          <div class="kpi"><div class="v">${isEmailConfirmed() ? "✔" : "–"}</div><div class="k">Email</div></div>
+          <div class="kpi"><div class="v">${state.profile?.role === "parent" ? "Veli" : "Öğrenci"}</div><div class="k">Rol</div></div>
+          <div class="kpi"><div class="v">${APP_VERSION}</div><div class="k">Sürüm</div></div>
+        </div>
+      </div>
+    </div>
+  `});
+
+  const { data: links, error } = await sb
+    .from("teacher_subjects")
+    .select("teacher_profile_id, subject_id");
+  logSupabase("teacher_subjects.market", { data: links, error });
+
+  const listEl = qs("#marketList");
+  if(error){
+    listEl.innerHTML = `<div class="lock">Bağlantı sorunu: ${esc(friendlyPostgrestError(error))}</div>`;
+    return;
+  }
+  const subjects = await fetchSubjects();
+  const subjMap = new Map(subjects.map(s=>[s.id, s]));
+
+  const teacherIds = [...new Set((links||[]).map(l=>l.teacher_profile_id))];
+  if(!teacherIds.length){
+    listEl.innerHTML = `
+      <div class="lock">Henüz öğretmen atanmadı, destekle iletişime geçmek için aşağıdaki butona tıkla.</div>
+      <button class="btn secondary" id="marketWa">WhatsApp Destek</button>
+    `;
+    qs("#marketWa")?.addEventListener("click", ()=>openWhatsAppMessage("Merhaba, öğretmen listesi boş görünüyor. Yönlendirme rica ederim."));
+    return;
+  }
+
+  const { data: profs } = await sb
+    .from("profiles")
+    .select("id, full_name, role, verified")
+    .in("id", teacherIds);
+  const { data: teachers } = await sb
+    .from("teachers")
+    .select("profile_id, bio");
+
+  const tMap = new Map((teachers||[]).map(t=>[t.profile_id, t.bio]));
+  const pMap = new Map((profs||[]).map(p=>[p.id, p]));
+
+  const cards = await Promise.all(teacherIds.map(async tid => {
+    const p = pMap.get(tid) || {};
+    const bio = tMap.get(tid) || "Bio eklenmemiş.";
+    const teacherSubs = (links||[]).filter(l=>l.teacher_profile_id===tid).map(l=>l.subject_id);
+    const subNames = teacherSubs.map(id => subjMap.get(id)?.name).filter(Boolean);
+    const rating = await fetchTeacherRating(tid);
+    return `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row spread">
+          <div>
+            <div style="font-weight:900">${esc(p.full_name || "Öğretmen")}</div>
+            <small>${subNames.join(", ") || "Ders ataması bekliyor"}</small>
+          </div>
+          <span class="badge">${rating.avg ? `⭐ ${rating.avg} (${rating.count})` : "Puan yok"}</span>
+        </div>
+        <p>${esc(bio)}</p>
+        ${p.verified ? `` : `<div class="lock">Yorum yazma kilitli (öğretmen doğrulanmadı).</div>`}
+        <div class="divider"></div>
+        <div class="row">
+          <button class="btn secondary" data-wa-teacher="${esc(tid)}">WhatsApp’tan yaz</button>
+          <button class="btn" data-request="${esc(tid)}">Talep Gönder</button>
+        </div>
+      </div>
+    `;
+  }));
+
+  listEl.innerHTML = cards.join("") || `<div class="lock">Kayıtlı öğretmen yok.</div>`;
+
+  qsa("[data-wa-teacher]", listEl).forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tid = btn.getAttribute("data-wa-teacher");
+      const name = pMap.get(tid)?.full_name || "Öğretmen";
+      const subjText = (links||[]).filter(l=>l.teacher_profile_id===tid).map(l=>subjMap.get(l.subject_id)?.name).filter(Boolean).join(", ");
+      const msg = `Merhaba, ${viewerLabel} olarak ${name} hocaya yazmak istiyorum. Ders: ${subjText || "belirtiniz"} • Rol: ${viewerLabel} • Kullanıcı: ${state.user?.id || "anon"}`;
+      openWhatsAppMessage(msg);
+    });
+  });
+
+  qsa("[data-request]", listEl).forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const tid = btn.getAttribute("data-request");
+      const teacherSubs = (links||[]).filter(l=>l.teacher_profile_id===tid).map(l=>l.subject_id);
+      await openMarketRequestModal(tid, teacherSubs, viewerLabel);
+    });
+  });
+}
+
+async function openMarketRequestModal(teacher_profile_id, subjectIds, viewerLabel){
+  const subjects = await fetchSubjects();
+  const options = subjectIds.map(id => `<option value="${esc(id)}">${esc(subjects.find(s=>s.id===id)?.name || "Ders")}</option>`).join("");
+  openModal("Talep Gönder", `
+    <label>Ders</label>
+    <select id="reqSub">${options || `<option value=\"\">Ders atanmadı</option>`}</select>
+    <label>Not</label>
+    <textarea class="input" id="reqNote" placeholder="Hedef, mevcut durum, ek not..."></textarea>
+  `, `
+    <button class="btn secondary" onclick="closeModal()">Vazgeç</button>
+    <button class="btn" id="reqSend">Gönder</button>
+  `);
+
+  qs("#reqSend")?.addEventListener("click", async () => {
+    const subject_id = qs("#reqSub").value;
+    const note = qs("#reqNote").value.trim();
+    if(!subject_id) return toast("error","Ders seçin.");
+
+    const meta = viewerLabel === "veli" ? await askChildMeta() : {};
+    meta.teacher_hint = teacher_profile_id;
+    meta.viewer = viewerLabel;
+    meta.note = note;
+
+    const { error } = await sb.from("enrollments").insert([{
+      user_profile_id: state.profile.id,
+      subject_id,
+      status: "requested",
+      meta
+    }]);
+    logSupabase("enrollments.insert.market", { error });
+    if(error) return toast("error","Talep gönderilemedi: " + friendlyPostgrestError(error));
+    toast("success","Talep alındı. Öğretmen yönlendirmesi yapılacak.");
+    closeModal();
+  });
 }
 
 function validEmail(email){
@@ -929,7 +1132,7 @@ async function studentCatalog(nav){
 }
 
 function levelLabel(level){
-  if(level==="primary") return "İlköğretim";
+  if(level==="primary") return "İlkğretim";
   if(level==="middle") return "Ortaöğretim";
   return "Lise";
 }
@@ -1039,7 +1242,7 @@ async function openSubjectDetailModal(subjectId, viewer){
   });
 }
 
-async function askChildMeta(){
+function askChildMeta(){
   return new Promise(resolve => {
     openModal("Veli Bilgisi", `
       <label>Öğrenci adı (isteğe bağlı)</label>
@@ -1253,7 +1456,7 @@ async function studentMessages(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="card">
       <h2>Notlar</h2>
-      <p>Öğretmen notları görevler içinde görünecek şekilde tasarlandı (tasks.notes).</p>
+      <p>Öğretmen notlar görevler içinde görünecek şekilde tasarlandı (tasks.notes).</p>
       <div class="divider"></div>
       <div class="lock">Öğretmenin görev eklediğinde burada “son notlar” akışı da göstereceğiz.</div>
     </div>
@@ -1530,39 +1733,40 @@ async function renderTeacherSubjectDetail(subject_id){
       logSupabase("enrollments.update.approve", { error });
       if(error) toast("error", friendlyPostgrestError(error));
       else {
-        toast("success", "Öğrenci derse kabul edildi.");
+        toast("success","Kayıt onaylandı.");
         await renderTeacherSubjectDetail(subject_id);
       }
     });
   });
 
   qsa("[data-taskfor]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const enrollment_id = btn.getAttribute("data-taskfor");
-      await openCreateTaskModal(enrollment_id);
+    btn.addEventListener("click", () => {
+      const eid = btn.getAttribute("data-taskfor");
+      openAddTaskModal(eid);
     });
   });
 
   qsa("[data-viewtasks]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const enrollment_id = btn.getAttribute("data-viewtasks");
-      await openEnrollmentTasksModal(enrollment_id, "teacher");
+      const eid = btn.getAttribute("data-viewtasks");
+      await openEnrollmentTasksModal(eid, "teacher");
     });
   });
 }
 
-async function openCreateTaskModal(enrollment_id){
+function openAddTaskModal(enrollment_id){
   openModal("Görev Ekle", `
     <label>Başlık</label>
-    <input class="input" id="tTitle" placeholder="Örn: Problem seti 10 soru" />
+    <input class="input" id="tTitle" placeholder="Örn: Paragraf 20 soru" />
     <label>Not</label>
-    <textarea class="input" id="tNotes" placeholder="Örn: İşlem hatası için birim kontrolü..."></textarea>
-    <label>Teslim Tarihi</label>
+    <textarea class="input" id="tNotes" placeholder="Kaynak, sayfa, süre vb."></textarea>
+    <label>Son Tarih</label>
     <input class="input" id="tDue" type="date" />
     <label>Görünürlük</label>
     <select id="tVis">
-      <option value="student_only">Sadece öğrenci</option>
-      <option value="parent_visible">Veli de görsün</option>
+      <option value="student">Öğrenci</option>
+      <option value="parent">Veli</option>
+      <option value="both">Her ikisi</option>
     </select>
   `, `
     <button class="btn secondary" onclick="closeModal()">Vazgeç</button>
@@ -2078,6 +2282,7 @@ async function renderAdminPanelInside(nav){
         <h2>Site Bilgileri</h2>
         <div class="lock">Toplam kullanıcı, doğrulama, talepler ve yorumlar.</div>
         <div class="divider"></div>
+
         <div class="kpis" id="siteKPIs">
           <div class="kpi"><div class="v">–</div><div class="k">Kullanıcı</div></div>
           <div class="kpi"><div class="v">–</div><div class="k">Mavi tik</div></div>
