@@ -554,8 +554,7 @@
 
     function openWhatsApp(preset){
       const base = `https://wa.me/${WHATSAPP_NUMBER}`;
-       const full = `${preset}\nDers/Amaç: …\n\nRol: ziyaretçi • Kullanıcı: ${anonId}\nZihin Atölyesi | v${APP_VERSION}`;
-      window.open(`${base}?text=${text}`, '_blank');
+      const full = `${preset}\n\n(Zihin Atölyesi üzerinden gönderildi)`;
     }
 
     document.querySelectorAll('[data-whatsapp]').forEach(btn=>{

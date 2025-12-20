@@ -107,11 +107,31 @@ function logSupabase(action, { data, error, status } = {}) {
 }
 
 function friendlyPostgrestError(err) {
-  if (!err) return "Bilinmeyen hata";
-  if ((err.message || "").includes("Failed to fetch")) return "Sunucuya erişilemedi (ağ/SSL/CORS).";
-  if (err.code === "400") return `İstek hatalı/kolon eksik: ${err.message}`;
-  if (err.code === "401" || err.code === "403") return `Yetki/RLS engeli: ${err.message}`;
-  return err.message || "Sunucu hatası";
+  if (!err) return "Bilinmeyen bir hata oluştu.";
+  
+  const msg = err.message || "";
+  
+  // İnternet/Sunucu Hatası
+  if (msg.includes("Failed to fetch") || msg.includes("Network")) {
+    return "Bağlantı koptu. Lütfen internetinizi kontrol edip tekrar deneyin.";
+  }
+  
+  // Yetki Hataları (RLS)
+  if (err.code === "401" || err.code === "403" || msg.includes("row-level security")) {
+    return "Bu işlemi yapmaya yetkiniz yok veya oturumunuz sonlanmış.";
+  }
+  
+  // Eksik Veri
+  if (err.code === "23502" || err.code === "400") {
+    return "Lütfen tüm alanları eksiksiz doldurun.";
+  }
+
+  // Çakışma (Örn: Aynı T.C. veya Mail)
+  if (err.code === "23505") {
+    return "Bu kayıt zaten mevcut.";
+  }
+
+  return "İşlem şu an gerçekleştirilemedi. Lütfen tekrar deneyin.";
 }
 
 function toast(type, msg) {
@@ -908,7 +928,7 @@ async function renderTeacherMarket(nav, viewer){
     `;
   }));
 
-  listEl.innerHTML = cards.join("") || `<div class="lock">Kayıtlı öğretmen yok.</div>`;
+  listEl.innerHTML = cards.join("") || renderEmptyState("Henüz kayıtlı öğretmen bulunmuyor.");
 
   qsa("[data-wa-teacher]", listEl).forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1199,7 +1219,7 @@ async function studentCatalog(nav){
       `;
     }));
 
-    qs("#catalogList").innerHTML = cards.join("") || `<div class="lock">Sonuç yok.</div>`;
+    qs("#catalogList").innerHTML = cards.join("") || renderEmptyState("Aradığınız kriterde ders bulunamadı.");
 
     qsa("[data-open]").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -1476,7 +1496,7 @@ async function studentMySubjects(nav){
   qs("#myEnrolls").innerHTML = `
     <table class="table">
       <thead><tr><th>Ders</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4"><div class="lock">Henüz talep yok.</div></td></tr>`}</tbody>
+      <tbody>${rows || '<tr><td colspan="4">' + renderEmptyState("Henüz hiç ders talebin yok. Kataloğa göz at!") + '</td></tr>'}</tbody>
     </table>
   `;
 
@@ -1669,7 +1689,7 @@ async function parentMy(nav){
   qs("#myEnrolls").innerHTML = `
     <table class="table">
       <thead><tr><th>Ders</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4"><div class="lock">Henüz talep yok.</div></td></tr>`}</tbody>
+      <tbody>${rows || '<tr><td colspan="4">' + renderEmptyState("Henüz hiç ders talebin yok. Kataloğa göz at!") + '</td></tr>'}</tbody>
     </table>
   `;
 
@@ -2728,3 +2748,12 @@ async function adminEnrollments(nav){
 }
 /* ----------------- NAV: default hash ----------------- */
 if(typeof location !== "undefined" && !location.hash) location.hash = "#home";
+/* --- YENİ EKLENTİ: Modern Boş Durum Tasarımı --- */
+function renderEmptyState(message = "Veri bulunamadı") {
+  return `
+    <div style="text-align:center; padding:30px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:14px; background:rgba(17,27,40,0.3);">
+      <i class="fa-regular fa-folder-open" style="font-size:32px; margin-bottom:10px; opacity:0.5; display:inline-block;"></i>
+      <div style="font-size:14px;">${esc(message)}</div>
+    </div>
+  `;
+}
