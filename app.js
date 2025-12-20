@@ -7,10 +7,12 @@ const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
 
 const ADMIN_PANEL_PIN = "1234"; // Görsel kilit. Yetkiyi vermez.
+const DEV_MODE = (location.hostname === "localhost" || location.hostname.includes("127.0.0.1"));
 
 if (!window.supabase) {
   alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
 }
+
 const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
 if (!supabaseConfigOk) {
   alert("Supabase yapılandırması eksik (URL veya ANON KEY boş). Lütfen ortam değişkenlerini kontrol et.");
@@ -2274,7 +2276,7 @@ async function renderAdminPanelInside(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="grid2">
       <div class="card">
-      <button class="btn" id="btnAddUserModal">Manuel Üye Ekle</button>
+      ${DEV_MODE ? `<button class="btn" id="btnAddUserModal">Manuel Üye Ekle</button>` : ``}
         <h2>Kullanıcı Yönetimi</h2>
         <div id="userList"><div class="skel" style="width:70%"></div></div>
       </div>
@@ -2409,6 +2411,10 @@ async function renderAdminPanelInside(nav){
 
 /* ----------------- QUICK SETUP ----------------- */
 async function adminQuickSetup(){
+  if(!DEV_MODE) {
+  toast("info","Hızlı kurulum yayında kapalı.");
+  return;
+}
   // Check if subjects exist
   const { data: existing, error } = await sb.from("subjects").select("id").limit(1);
   logSupabase("subjects.check", { data: existing, error });
