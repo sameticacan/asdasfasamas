@@ -36,7 +36,7 @@ a { text-decoration: none; color: inherit; }
 .hero-content { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; }
 .badge-hero { background: var(--accent-light); color: var(--accent); padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
 h1 { font-size: 54px; line-height: 1.1; margin: 18px 0 12px; letter-spacing: -1px; }
-.text-gradient { background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.text-gradient { background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .hero-text p { color: var(--muted); font-size: 18px; max-width: 540px; }
 .hero-btns { display: flex; gap: 12px; margin-top: 22px; }
 .btn-primary { background: var(--accent-2); color: #fff; border: none; padding: 14px 26px; border-radius: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 16px 40px rgba(37, 99, 235, 0.3); }
