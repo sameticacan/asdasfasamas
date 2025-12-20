@@ -1,14 +1,15 @@
-const APP_VERSION = "1.2.0"; // Tek sürüm referansı
+const APP_VERSION = window.APP_VERSION || "1.3.0"; // Tek sürüm referansı (HTML de buradan beslenir)
 const BRAND_NAME = "Zihin Atölyesi";
 const SUPPORT_EMAIL = "destek@zihinatolyesi.com";
 const SUPPORT_HOURS = "Hafta içi 09.00-22.00 • Hafta sonu 10.00-20.00";
-const WHATSAPP_NUMBER = "05426726750";
+const WHATSAPP_NUMBER = "905426726750"; // wa.me formatı (ülke kodu, başta 0 yok)
+const PROD_HOSTS = ["asdasfasamas.vercel.app"];
+const IS_LOCAL = ["localhost", "127.0.0.1", "0.0.0.0"].some(h => location.hostname.includes(h));
+const DEV_MODE = IS_LOCAL && !PROD_HOSTS.includes(location.hostname);
 const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
 
-const ADMIN_PANEL_PIN = "1234"; // Görsel kilit. Yetkiyi vermez.
-const DEV_MODE = (location.hostname === "localhost" || location.hostname.includes("127.0.0.1"));
-
+const LOG_VERBOSE = DEV_MODE;
 if (!window.supabase) {
   alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
 }
@@ -39,10 +40,13 @@ const state = {
     subjects: null,
     subjectsMeta: { error: null, empty: false },
     packagesBySubject: new Map(),
+    packagesMeta: new Map(),
     teacherSubjects: null,
   },
   debugOpen: false,
   lastError: "",
+    adminLockUntil: parseInt(localStorage.getItem("adminLockUntil") || "0", 10),
+  adminTries: parseInt(localStorage.getItem("adminTries") || "0", 10),
 };
 
 ensureDebugPanel();
@@ -76,8 +80,7 @@ async function pingSupabase() {
   if (!sb) return;
   const { error } = await sb.from("profiles").select("count", { count: "exact", head: true });
   if (error) console.error("❌ Supabase Bağlantı Hatası:", error);
-  else console.log("✅ Supabase bağlantısı çalışıyor (ping)");
-}
+  else if (LOG_VERBOSE) console.log("✅ Supabase bağlantısı çalışıyor (ping)");}
 
 function setRoleChoice(role) {
   state.roleChoice = role;
@@ -96,11 +99,16 @@ function isEmailConfirmed() {
 }
 
 function logSupabase(action, { data, error, status } = {}) {
-  console.log(`[SB] ${action}`, { status, data, error });
+  if (LOG_VERBOSE) {
+    console.log(`[SB] ${action}`, { status, data, error });
+  } else if (error) {
+    console.warn(`[SB] ${action} hata`, { status, message: error.message, code: error.code });
+  }
 }
 
 function friendlyPostgrestError(err) {
   if (!err) return "Bilinmeyen hata";
+  if ((err.message || "").includes("Failed to fetch")) return "Sunucuya erişilemedi (ağ/SSL/CORS).";
   if (err.code === "400") return `İstek hatalı/kolon eksik: ${err.message}`;
   if (err.code === "401" || err.code === "403") return `Yetki/RLS engeli: ${err.message}`;
   return err.message || "Sunucu hatası";
@@ -112,7 +120,12 @@ function toast(type, msg) {
   t.className = `toast ${type || ""}`.trim();
   let text = msg;
   if ((msg || "").includes("Failed to fetch")) {
+  const isFetchErr = (msg || "").includes("Failed to fetch") || (msg || "").includes("ağ/SSL");
+  if (isFetchErr) {
     text = `${msg} (ağ/SSL ya da CORS engeli olabilir)`;
+    showNetStatus(text);
+  } else {
+    clearNetStatus();
   }
   t.textContent = text;
   wrap.appendChild(t);
@@ -120,6 +133,61 @@ function toast(type, msg) {
   if (type === "error" || type === "warn") {
     setLastError(text);
   }
+}}
+function showNetStatus(message, retryCb){
+  let box = qs("#netStatus");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "netStatus";
+    box.className = "net-status";
+    box.innerHTML = `
+      <div class="net-text"></div>
+      <div class="net-actions">
+        <button class="btn secondary" id="netRetry">Yeniden Dene</button>
+        <button class="btn" id="netDismiss">Gizle</button>
+      </div>
+    `;
+    document.body.appendChild(box);
+    qs("#netDismiss", box)?.addEventListener("click", clearNetStatus);
+    qs("#netRetry", box)?.addEventListener("click", () => {
+      if(typeof retryCb === "function") retryCb();
+      else location.reload();
+    });
+  }
+  const textEl = qs(".net-text", box);
+  if(textEl) textEl.textContent = message;
+}
+function clearNetStatus(){
+  qs("#netStatus")?.remove();
+}
+
+function adminLockActive(){
+  const now = Date.now();
+  if(state.adminLockUntil && state.adminLockUntil > now){
+    return true;
+  }
+  if(state.adminLockUntil && state.adminLockUntil <= now){
+    state.adminLockUntil = 0;
+    state.adminTries = 0;
+    localStorage.removeItem("adminLockUntil");
+    localStorage.removeItem("adminTries");
+  }
+  return false;
+}
+function recordAdminFailure(){
+  state.adminTries = (state.adminTries || 0) + 1;
+  localStorage.setItem("adminTries", String(state.adminTries));
+  if(state.adminTries >= 5){
+    state.adminLockUntil = Date.now() + (5 * 60 * 1000);
+    localStorage.setItem("adminLockUntil", String(state.adminLockUntil));
+    toast("warn","Admin giriş denemeleri 5 dk kilitlendi.");
+  }
+}
+function clearAdminFailures(){
+  state.adminTries = 0;
+  state.adminLockUntil = 0;
+  localStorage.removeItem("adminTries");
+  localStorage.removeItem("adminLockUntil");
 }
 
 function openModal(title, bodyHTML, footHTML) {
@@ -189,8 +257,7 @@ function ensureContactWidget(){
   function sendTemplate(text){
     const role = state.profile?.role || state.roleChoice || "ziyaretçi";
     const uid = state.user?.id ? state.user.id.slice(0,8) : "anon";
-    const full = `${text}\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
+    const full = `${text}\nDers/Amaç: …\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
     window.open(url, "_blank");
     hide();
   }
@@ -212,8 +279,7 @@ function ensureContactWidget(){
 function openWhatsAppMessage(text){
   const role = state.profile?.role || state.roleChoice || "ziyaretçi";
   const uid = state.user?.id ? state.user.id.slice(0,8) : "anon";
-  const full = `${text}\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
+  const full = `${text}\nDers/Amaç: …\n\nRol: ${role} • Kullanıcı: ${uid}\n${BRAND_NAME} | v${APP_VERSION}`;  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(full)}`;
   window.open(url, "_blank");
 }
 
@@ -225,6 +291,14 @@ function setLastError(msg) {
 function updateDebugPanel() {
   const box = qs("#debugPanel");
   if (!box) return;
+  const chip = qs("#debugChip") || state.debugChip;
+  const allowDebug = DEV_MODE || state.profile?.role === "admin";
+  if (chip) chip.classList.toggle("hidden", !allowDebug);
+  if (!allowDebug) {
+    state.debugOpen = false;
+    box.classList.add("hidden");
+    return;
+  }
   const body = qs("#debugBody", box);
   const subjectsCount = state.cache.subjects?.length || 0;
   const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr) => sum + (arr?.length || 0), 0);
@@ -325,7 +399,7 @@ async function ensureProfileLoaded() {
     return;
   }
 
-  const role = state.roleChoice;
+  const role = ["student","parent"].includes(state.roleChoice) ? state.roleChoice : "student";
   const full_name = state.user.user_metadata?.full_name || state.user.email?.split("@")[0] || "Kullanıcı";
   const { data: ins, error: e2 } = await sb
     .from("profiles")
@@ -501,13 +575,20 @@ function renderAuth(role) {
   async function doLogin() {
     const email = qs("#loginEmail").value.trim();
     const password = qs("#loginPass").value;
+    if(role === "admin" && adminLockActive()){
+      const wait = Math.ceil((state.adminLockUntil - Date.now())/1000/60);
+      return toast("warn", `Admin girişleri kilitli. ${wait > 0 ? wait + " dk" : "Kısa süre"} sonra tekrar deneyin.`);
+    }
     
     if (!email || !password || !validEmail(email)) return toast("error", "Geçerli email ve şifre giriniz.");
 
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     logSupabase("auth.signInWithPassword", { data, error });
-    if (error) return toast("error", `Giriş başarısız (${error.status || ""}): ${friendlyPostgrestError(error)}`);
-    
+    if (error) {
+      if(role === "admin") recordAdminFailure();
+      return toast("error", `Giriş başarısız (${error.status || ""}): ${friendlyPostgrestError(error)}`);
+    }
+    if(role === "admin") clearAdminFailures();    
     toast("success", "Giriş başarılı, yönlendiriliyor...");
     route(); 
   }
@@ -558,8 +639,7 @@ async function safeSignOut() {
   state.session = null;
   state.user = null;
   state.profile = null;
-  state.cache = { subjects: null, subjectsMeta: { error: null, empty: false }, packagesBySubject: new Map(), teacherSubjects: null };
-  location.hash = "";
+  state.cache = { subjects: null, subjectsMeta: { error: null, empty: false }, packagesBySubject: new Map(), packagesMeta: new Map(), teacherSubjects: null };  location.hash = "";
   toast("success", "Çıkış yapıldı (zorlandı).");
   updateDebugPanel();
 }
@@ -631,7 +711,7 @@ function renderAdminHub(hash) {
     { hash: "teachers", label: "Öğretmenler" },
     { hash: "catalog", label: "Ders Kataloğu" },
     { hash: "reviews", label: "Yorumlar" },
-    { hash: "panel", label: "Yönetim (PIN)" }
+    { hash: "panel", label: "Yönetim" }
   ];
 
   if (hash === "enrollments") return adminEnrollments(nav);
@@ -668,6 +748,7 @@ function resetCatalogCache() {
   state.cache.subjects = null;
   state.cache.subjectsMeta = { error: null, empty: false };
   state.cache.packagesBySubject.clear();
+  state.cache.packagesMeta.clear();
   updateDebugPanel();
 }
 async function fetchPackages(subject_id) {
@@ -681,9 +762,13 @@ async function fetchPackages(subject_id) {
   logSupabase("subject_packages.select", { data, error, status });
   if (error) {
     setLastError(error.message);
+    state.cache.packagesMeta.set(subject_id, { error, status });
     toast("error", "Paketler alınamadı: " + friendlyPostgrestError(error));
+    state.cache.packagesBySubject.set(subject_id, []);
+    updateDebugPanel();
     return [];
   }
+  state.cache.packagesMeta.set(subject_id, { error: null, status });
   state.cache.packagesBySubject.set(subject_id, data || []);
   updateDebugPanel();
   return data || [];
@@ -781,10 +866,7 @@ async function renderTeacherMarket(nav, viewer){
 
   const teacherIds = [...new Set((links||[]).map(l=>l.teacher_profile_id))];
   if(!teacherIds.length){
-    listEl.innerHTML = `
-      <div class="lock">Henüz öğretmen atanmadı, destekle iletişime geçmek için aşağıdaki butona tıkla.</div>
-      <button class="btn secondary" id="marketWa">WhatsApp Destek</button>
-    `;
+    listEl.innerHTML = `<div class="lock">Bağlantı/policy engeli: ${esc(friendlyPostgrestError(error))}</div>`;
     qs("#marketWa")?.addEventListener("click", ()=>openWhatsAppMessage("Merhaba, öğretmen listesi boş görünüyor. Yönlendirme rica ederim."));
     return;
   }
@@ -1146,16 +1228,20 @@ async function openSubjectDetailModal(subjectId, viewer){
 
   const teachers = await fetchTeacherLinksForSubject(subjectId);
   const packages = await fetchPackages(subjectId);
-
+  const pkgMeta = state.cache.packagesMeta.get(subjectId);
   const isEnglish = (s.name||"").toLowerCase().includes("ingilizce") || (s.name||"").toLowerCase().includes("english");
 
   let pkgHTML = "";
   if(!isEmailConfirmed()){
     pkgHTML = `<div class="lock">Fiyatları görmek için email doğrulaması gerekli. (Giriş yaptıysan email kutunu kontrol et.)</div>`;
+    } else if(pkgMeta?.error && (pkgMeta.error.code === "401" || pkgMeta.error.code === "403")){
+    pkgHTML = `<div class="lock">Yetki/RLS engeli: Paket fiyatları için email doğrulaması veya ek yetki gerekiyor.</div>`;
   } else {
     pkgHTML = packages.map(p => `
       <div class="row spread" style="padding:10px 0; border-bottom:1px solid var(--line);">
-        <div>
+        
+      <div>
+        
           <div style="font-weight:900">${esc(p.title)}</div>
           <small>${esc(p.package_code)}</small>
         </div>
@@ -1852,7 +1938,7 @@ async function adminHome(nav){
       </div>
       <div class="divider"></div>
       <div class="row">
-        <button class="btn secondary" id="quickSetupBtn">Hızlı Kurulum (Ders + Paket)</button>
+        ${DEV_MODE ? `<button class="btn secondary" id="quickSetupBtn">Hızlı Kurulum (Ders + Paket)</button>` : `<div class="lock">Hızlı kurulum yayın ortamında devre dışıdır.</div>`}
         <span class="lock">Boş projede ders/paket yoksa bunu bir kez çalıştır.</span>
       </div>
     </div>
@@ -2248,35 +2334,14 @@ async function adminReviews(nav){
 }
 
 async function adminPanel(nav){
-  shell({ navItems: nav, contentHTML: `
-    <div class="card">
-      <h2>Yönetim Paneli</h2>
-      <div class="lock">Açmak için PIN girmen gerekiyor.</div>
-    </div>
-  `});
-
-  openModal("PIN Girişi", `
-    <label>Yönetim Paneli PIN</label>
-    <input class="input" id="pinIn" type="password" placeholder="PIN" />
-    <div class="footer-note">Bu PIN sadece ekstra görsel kapı. Asıl güvenlik: admin role + RLS.</div>
-  `, `
-    <button class="btn secondary" onclick="closeModal()">Vazgeç</button>
-    <button class="btn" id="pinOk">Aç</button>
-  `);
-
-  qs("#pinOk")?.addEventListener("click", async () => {
-    const pin = qs("#pinIn").value.trim();
-    if(pin !== ADMIN_PANEL_PIN) return toast("error","PIN yanlış.");
-    closeModal();
-    await renderAdminPanelInside(nav);
-  });
+  await renderAdminPanelInside(nav);
 }
 
 async function renderAdminPanelInside(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="grid2">
       <div class="card">
-      ${DEV_MODE ? `<button class="btn" id="btnAddUserModal">Manuel Üye Ekle</button>` : ``}
+      ${DEV_MODE ? `<button class="btn" id="btnAddUserModal">Manuel Üye Ekle</button>` : `<div class="lock">Manuel üye ekleme prod'da kapalı.</div>`}
         <h2>Kullanıcı Yönetimi</h2>
         <div id="userList"><div class="skel" style="width:70%"></div></div>
       </div>
@@ -2352,6 +2417,10 @@ async function renderAdminPanelInside(nav){
   const btnAddUser = qs("#btnAddUserModal");
   if(btnAddUser) {
     btnAddUser.addEventListener("click", () => {
+      if(!DEV_MODE){
+        toast("warn","Manuel üye ekleme prod'da kapalı.");
+        return;
+      }
       openModal("Manuel Kullanıcı Oluştur", `
         <div class="lock" style="color:var(--warn); margin-bottom:15px;">
           ⚠️ <b>DİKKAT:</b> Tarayıcı tabanlı sistemlerde, yeni bir kullanıcı oluşturduğunda Supabase otomatik olarak o kullanıcının oturumunu açar. 
@@ -2362,7 +2431,6 @@ async function renderAdminPanelInside(nav){
         <select id="newUserRole">
           <option value="student">Öğrenci</option>
           <option value="parent">Veli</option>
-          <option value="teacher">Öğretmen</option>
         </select>
         <label>Ad Soyad</label>
         <input class="input" id="newUserName" placeholder="Ad Soyad" />
@@ -2377,11 +2445,16 @@ async function renderAdminPanelInside(nav){
 
       setTimeout(() => {
         qs("#btnCreateUser")?.addEventListener("click", async () => {
+          if(!DEV_MODE){
+            toast("warn","Manuel kullanıcı oluşturma yayın ortamında kapalı.");
+            closeModal();
+            return;
+          }
           const role = qs("#newUserRole").value;
           const full_name = qs("#newUserName").value;
           const email = qs("#newUserEmail").value;
           const password = qs("#newUserPass").value;
-
+          const safeRole = ["student","parent"].includes(role) ? role : "student";
           const { data, error } = await sb.auth.signUp({
             email, password,
             options: { data: { full_name } }
@@ -2394,7 +2467,7 @@ async function renderAdminPanelInside(nav){
           if(data.user){
              await sb.from("profiles").insert([{ 
                id: data.user.id, 
-               role: role, 
+               role: safeRole, 
                full_name: full_name, 
                verified: true // Biz ekledik, onaylı olsun
              }]);

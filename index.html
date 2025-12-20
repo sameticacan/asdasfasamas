@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store" />
   <title>Zihin Atölyesi | Birebir Koçluk ve Özel Ders</title>
-  <link rel="stylesheet" href="style.css?v=1.2.0" />
+  <script>window.APP_VERSION="1.3.0";</script>
+  <link rel="stylesheet" id="styleLink" href="style.css?v=1.3.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -428,7 +429,7 @@
           <h4>Bize Ulaş</h4>
           <p>Hangi derste desteğe ihtiyacın var? WhatsApp'tan yaz, hemen plan yapalım.</p>
           <button class="btn-primary" onclick="document.getElementById('btnLogin').click()">Panele Git</button>
-          <p class="muted" style="margin-top:10px;">Veya direkt yaz: 0542 672 67 50</p>
+          <p class="muted" style="margin-top:10px;">Veya direkt yaz: +90 542 672 67 50</p>
         </div>
         <div>
           <p class="muted">Hızlı Menü</p>
@@ -462,9 +463,10 @@
         <div>
           <p class="muted">İletişim</p>
           <p>✉️ bilgi@zihinatolyesi.com</p>
-          <p>📞 0 542 672 67 50</p>
+          <p>📞 +90 542 672 67 50</p>
         </div>
       </div>
+      <div class="version-chip">Sürüm v1.3.0</div>
     </div>
   </footer>
 
@@ -492,7 +494,13 @@
   </div>
 
   <script>
-    const WHATSAPP_NUMBER = "05426726750";
+    const APP_VERSION = window.APP_VERSION || "1.3.0";
+    const WHATSAPP_NUMBER = "905426726750";
+    const anonId = localStorage.getItem("anonId") || (() => {
+      const rand = (crypto && crypto.randomUUID) ? crypto.randomUUID().slice(0,8) : Math.random().toString(36).slice(2,10);
+      localStorage.setItem("anonId", rand);
+      return rand;
+    })();
     const quotes = [
       { text: "Başarı, her gün tekrarlanan küçük çabaların toplamıdır.", author: "Zihin Atölyesi Mottosu" },
       { text: "Planı olmayan bir hedef, sadece bir hayaldir.", author: "Koçluk İlkesi" },
@@ -546,7 +554,7 @@
 
     function openWhatsApp(preset){
       const base = `https://wa.me/${WHATSAPP_NUMBER}`;
-      const text = encodeURIComponent(preset);
+       const full = `${preset}\nDers/Amaç: …\n\nRol: ziyaretçi • Kullanıcı: ${anonId}\nZihin Atölyesi | v${APP_VERSION}`;
       window.open(`${base}?text=${text}`, '_blank');
     }
 
@@ -565,6 +573,9 @@
       localStorage.removeItem("roleChoice"); 
       window.location.href = "panel.html";
     });
+     // cache busting badge
+    document.getElementById("styleLink").href = `style.css?v=${APP_VERSION}`;
+    document.querySelectorAll(".version-chip").forEach(el => el.textContent = `Sürüm v${APP_VERSION}`);
   </script>
 </body>
 </html>

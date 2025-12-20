@@ -124,10 +124,14 @@ h1 { font-size: 54px; line-height: 1.1; margin: 18px 0 12px; letter-spacing: -1p
 
 .footer-content { display: flex; justify-content: space-between; gap: 20px; padding: 32px 0; border-top: 1px solid var(--border); }
 .footer-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; text-align: right; }
+.version-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 12px; }
 
 /* Contact Widget */
 .contact-widget { position: fixed; right: 18px; bottom: 18px; z-index: 200; }
-.contact-toggle { background: #25d366; color: #0f172a; border: none; padding: 12px 18px; border-radius: 999px; font-weight: 800; box-shadow: 0 12px 30px rgba(0,0,0,0.25); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.contact-widget{ pointer-events:none; }
+.contact-widget .contact-toggle, .contact-widget .contact-panel{ pointer-events:auto; }
+.contact-toggle { background: #25d366; color: #0f172a; border: none; padding: 12px 18px; border-radius: 999px; font-weight: 800; box-shadow: 0 12px 30px rgba(0,0,0,0.25); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; pointer-events:auto; }
+.contact-panel { position: absolute; bottom: 64px; right: 0; width: 280px; background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); padding: 16px; border: 1px solid var(--border); pointer-events:auto; }
 .contact-panel { position: absolute; bottom: 64px; right: 0; width: 280px; background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); padding: 16px; border: 1px solid var(--border); }
 .contact-panel.hidden { display: none; }
 .contact-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }

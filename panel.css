@@ -398,6 +398,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   right:18px;
   bottom:18px;
   z-index:120;
+  pointer-events:none;
 }
 .contact-toggle{
   background:#25d366;
@@ -411,6 +412,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   display:inline-flex;
   gap:8px;
   align-items:center;
+  pointer-events:auto;
 }
 .contact-panel{
   position:absolute;
@@ -422,6 +424,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   border-radius:18px;
   box-shadow:0 20px 60px rgba(0,0,0,0.45);
   padding:14px;
+  pointer-events:auto;
 }
 .contact-panel.hidden{ display:none; }
 .contact-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -441,4 +444,27 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   padding:8px 10px;
   cursor:pointer;
   text-align:left;
+}
+.net-status{
+  position:fixed;
+  left:14px;
+  bottom:14px;
+  border:1px solid var(--warn);
+  background: rgba(17,27,40,.9);
+  color:var(--text);
+  border-radius: 14px;
+  padding:12px;
+  box-shadow: var(--shadow);
+  z-index:80;
+  max-width:320px;
+}
+.net-status .net-actions{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+}
+.net-status .net-text{
+  font-size:13px;
+  line-height:1.4;
+  color:var(--muted);
 }
