@@ -16,25 +16,27 @@
         <i class="fa-solid fa-brain" style="color:var(--accent);"></i>
         Zihin<span class="light">Atölyesi</span>
       </div>
-      
-      <div class="nav-links desktop-only">
-        <a href="#nasil">Sistemimiz</a>
-        <a href="#dersler">Özel Dersler</a>
-        <a href="#ekip">Mentorlar</a>
-        <a href="#basari">Hikayeler</a>
-        <a href="#sss">Merak Edilenler</a>
-      </div>
+      <input type="checkbox" id="navToggle" class="nav-toggle" aria-label="Navigasyonu aç/kapat" />
+      <label for="navToggle" class="nav-burger" aria-label="Menü">
+        <span></span><span></span><span></span>
+      </label>
+      <div class="nav-rail">
+        <div class="nav-links">
+          <a href="#nasil">Sistemimiz</a>
+          <a href="#dersler">Özel Dersler</a>
+          <a href="#ekip">Mentorlar</a>
+          <a href="#basari">Hikayeler</a>
+          <a href="#sss">Merak Edilenler</a>
+        </div>
 
       <div class="nav-actions">
-        <button id="btnLogin" class="btn-login">
-          <i class="fa-solid fa-rocket"></i> Panele Giriş
-        </button>
-        <button class="btn-ghost" onclick="document.getElementById('ekip').scrollIntoView({behavior:'smooth'})">
-          Ekibi Gör
-        </button>
-      </div>
-    </div>
-  </nav>
+          <button id="btnLogin" class="btn-login">
+            <i class="fa-solid fa-rocket"></i> Panele Giriş
+          </button>
+          <button class="btn-ghost" onclick="document.getElementById('ekip').scrollIntoView({behavior:'smooth'})">
+            Ekibi Gör
+          </button>
+        </div>
 
   <header class="hero-section">
     <div class="container hero-content">
@@ -470,8 +472,8 @@
   </footer>
 
   <div id="contactWidget" class="contact-widget">
-    <button id="contactToggle" class="contact-toggle"><i class="fa-brands fa-whatsapp"></i> Bize Ulaşın</button>
-    <div id="contactPanel" class="contact-panel hidden">
+    <button id="contactToggle" class="contact-toggle wa-fab"><i class="fa-brands fa-whatsapp"></i> Bize Ulaşın</button>
+    <div id="contactPanel" class="contact-panel wa-panel hidden">    <div id="contactPanel" class="contact-panel hidden">
       <div class="contact-head">
         <div>
           <p class="muted">WhatsApp Hattı</p>
@@ -543,7 +545,10 @@
         body.style.maxHeight = body.style.maxHeight ? null : body.scrollHeight + 'px';
       });
     });
-
+    const navToggle = document.getElementById('navToggle');
+    document.querySelectorAll('.nav-links a').forEach(link=>{
+      link.addEventListener('click',()=>{ if(navToggle) navToggle.checked = false; });
+    });
     // WhatsApp panel
     const panel = document.getElementById('contactPanel');
     const toggle = document.getElementById('contactToggle');

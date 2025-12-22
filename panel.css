@@ -15,6 +15,10 @@
   --r:14px;
   --pad:16px;
   --max:1100px;
+  --container: 1100px;
+  --gap: 14px;
+  --radius: 14px;
+  --font-base: 16px;
   font-synthesis-weight:none;
 }
 
@@ -27,15 +31,17 @@ body{
               radial-gradient(900px 700px at 80% 0%, rgba(57,217,138,.10), transparent 55%),
               var(--bg);
   color:var(--text);
+  font-size: var(--font-base);
+  overflow-x: hidden;
 }
 
 a{ color:inherit; }
 small{ color:var(--muted); }
 
 .container{
-  max-width:var(--max);
+  max-width:var(--container);
   margin:0 auto;
-  padding:24px;
+  padding:24px var(--pad);
 }
 
 .brand{
@@ -79,7 +85,7 @@ small{ color:var(--muted); }
   border-radius:12px;
   cursor:pointer;
   text-decoration:none;
-  font-size:13px;
+  min-height:44px;
 }
 .nav a.active{
   border-color: rgba(74,163,255,.45);
@@ -139,6 +145,7 @@ small{ color:var(--muted); }
   border-radius: 14px;
   cursor:pointer;
   font-weight:700;
+  min-height:44px;
 }
 .btn:hover{ filter: brightness(1.05); }
 .btn.secondary{
@@ -166,6 +173,7 @@ small{ color:var(--muted); }
   width:36px;height:36px;
   border-radius: 12px;
   cursor:pointer;
+  min-height:44px;
 }
 
 .input, select, textarea{
@@ -176,6 +184,7 @@ small{ color:var(--muted); }
   padding:10px 12px;
   border-radius: 14px;
   outline:none;
+  min-height:44px;
 }
 textarea{ min-height: 90px; resize: vertical; }
 label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
@@ -271,6 +280,31 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   .role-card { padding: 30px; flex-direction: row; flex-wrap: wrap; text-align: left; }
   .role-card div[style*="font-size:40px"] { margin-right: 20px !important; margin-bottom: 0 !important; font-size: 40px !important; }
   .role-card .btn { width: 100% !important; margin-top: 15px !important; }
+  .topbar{ position:sticky; top:0; margin-bottom:6px; }
+  .nav{
+    position:fixed;
+    left:12px; right:12px;
+    bottom:calc(12px + env(safe-area-inset-bottom));
+    background: rgba(17,27,40,.9);
+    padding:10px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    box-shadow: var(--shadow);
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    justify-items:center;
+    gap:8px;
+    z-index:10;
+  }
+  .nav a, .nav button{ width:100%; text-align:center; }
+  .main{ padding-bottom:140px; }
+  .table{ display:block; }
+  .table thead{ display:none; }
+  .table tbody{ display:grid; gap:10px; }
+  .table tr{ display:grid; gap:8px; border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .table td{ display:grid; grid-template-columns: minmax(120px, 1fr) 2fr; gap:6px; }
+  .table td::before{ content: attr(data-label); color: var(--muted); font-size:12px; letter-spacing:.2px; text-transform: uppercase; }
+  .contact-widget{ bottom:calc(96px + env(safe-area-inset-bottom)); }
 }
 .footer-note{
   color:var(--muted);
@@ -313,7 +347,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
 .toasts{
   position:fixed;
   right:14px;
-  bottom:14px;
+  bottom:calc(14px + env(safe-area-inset-bottom));
   display:grid;
   gap:10px;
   z-index:60;
@@ -405,7 +439,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
 .contact-widget{
   position:fixed;
   right:18px;
-  bottom:18px;
+  bottom:calc(18px + env(safe-area-inset-bottom));
   z-index:120;
   pointer-events:none;
 }
@@ -427,7 +461,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   position:absolute;
   bottom:64px;
   right:0;
-  width:280px;
+  width:min(88vw, 320px);
   background:rgba(15,22,33,.95);
   border:1px solid var(--line);
   border-radius:18px;
@@ -515,4 +549,12 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   display:flex;
   align-items:center;
   gap:6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

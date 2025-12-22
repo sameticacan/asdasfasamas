@@ -142,7 +142,6 @@ function toast(type, msg) {
   const t = document.createElement("div");
   t.className = `toast ${type || ""}`.trim();
   let text = msg;
-  if ((msg || "").includes("Failed to fetch")) {
   const isFetchErr = (msg || "").includes("Failed to fetch") || (msg || "").includes("ağ/SSL");
   if (isFetchErr) {
     text = `${msg} (ağ/SSL ya da CORS engeli olabilir)`;
@@ -156,7 +155,8 @@ function toast(type, msg) {
   if (type === "error" || type === "warn") {
     setLastError(text);
   }
-}}
+}
+
 function showNetStatus(message, retryCb){
   let box = qs("#netStatus");
   if(!box){
@@ -231,7 +231,16 @@ function closeModal() {
 function qs(sel, root = document) { return root ? root.querySelector(sel) : null; }
 function qsa(sel, root = document) { return (!root || !root.querySelectorAll) ? [] : Array.from(root.querySelectorAll(sel)); }
 function esc(s) { return (s ?? "").toString().replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
-
+function applyMobileTableLabels() {
+  document.querySelectorAll(".table").forEach(tbl => {
+    const headers = Array.from(tbl.querySelectorAll("thead th")).map(th => th.textContent.trim());
+    tbl.querySelectorAll("tbody tr").forEach(row => {
+      Array.from(row.children).forEach((cell, idx) => {
+        if (headers[idx]) cell.setAttribute("data-label", headers[idx]);
+      });
+    });
+  });
+}
 function ensureDebugPanel() {
   if (qs("#debugPanel")) return;
   const box = document.createElement("div");
@@ -478,6 +487,7 @@ function shell({ titleRight = "", navItems = [], contentHTML = "" }) {
   logoutBtn?.addEventListener("click", async () => {
     await safeSignOut();
   });
+  applyMobileTableLabels();
 }
 
 function renderRoleSelect() {
@@ -1920,6 +1930,8 @@ async function studentMySubjects(nav){
       <tbody>${rows || '<tr><td colspan="4">' + renderEmptyState("Henüz hiç ders talebin yok. Kataloğa göz at!") + '</td></tr>'}</tbody>
     </table>
   `;
+  applyMobileTableLabels();
+  applyMobileTableLabels();
 
   qsa("[data-open-en]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -2254,7 +2266,7 @@ async function renderTeacherSubjectDetail(subject_id){
       <tbody>${rows || `<tr><td colspan="4"><div class="lock">Kayıt yok.</div></td></tr>`}</tbody>
     </table>
   `;
-
+  applyMobileTableLabels();
   qsa("[data-approve]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const eid = btn.getAttribute("data-approve");
@@ -2451,7 +2463,7 @@ async function adminCatalog(nav){
       <tbody>${rows || `<tr><td colspan="4"><div class="lock">Ders yok.</div></td></tr>`}</tbody>
     </table>
   `;
-
+  applyMobileTableLabels();
   qsa("[data-toggle]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-toggle");
@@ -2760,7 +2772,7 @@ async function adminReviews(nav){
       <tbody>${rows || `<tr><td colspan="5"><div class="lock">Yorum yok.</div></td></tr>`}</tbody>
     </table>
   `;
-
+  applyMobileTableLabels();
   qsa("[data-hide]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-hide");
@@ -2828,6 +2840,7 @@ async function renderAdminUsers(nav){
     </table>
     <div class="admin-phone-note"><i class="fa-solid fa-lock"></i> Bu bilgi sadece admin tarafından görülebilir</div>
   `;
+  applyMobileTableLabels();
 }
 
 /* ----------------- ADMIN: PROFILE DETAIL ----------------- */
@@ -3096,6 +3109,7 @@ async function renderAdminPanelInside(nav){
       <tbody>${rows || `<tr><td colspan="5"><div class="lock">Kullanıcı yok.</div></td></tr>`}</tbody>
     </table>
   `;
+  applyMobileTableLabels();
 
   qsa("[data-verify]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -3390,6 +3404,7 @@ async function adminEnrollments(nav){
         <tbody>${rows || `<tr><td colspan="5"><div class="lock">Kriterlere uygun kayıt yok.</div></td></tr>`}</tbody>
       </table>
     `;
+    applyMobileTableLabels();
 
     qsa("[data-approve-en]").forEach(btn => {
       btn.addEventListener("click", async () => {
