@@ -29,7 +29,7 @@
           <a href="#sss">Merak Edilenler</a>
         </div>
 
-      <div class="nav-actions">
+         <div class="nav-actions">
           <button id="btnLogin" class="btn-login">
             <i class="fa-solid fa-rocket"></i> Panele Giriş
           </button>
@@ -447,35 +447,42 @@
     </div>
   </section>
   
-  <footer id="iletisim">
-    <div class="container footer-content">
-      <div>
-        <h3>Zihin Atölyesi</h3>
-        <p>Butik Eğitim & Koçluk</p>
-        <p>Birlikte başaracağız.</p>
-      </div>
-      <div class="footer-cols">
-        <div>
-          <p class="muted">Konum</p>
-          <p>📍 İzmir / Türkiye</p>
-        </div>
-        <div>
-          <p class="muted">Takip Et</p>
-          <p>Instagram / YouTube</p>
-        </div>
-        <div>
-          <p class="muted">İletişim</p>
-          <p>✉️ bilgi@zihinatolyesi.com</p>
-          <p>📞 +90 542 672 67 50</p>
-        </div>
-      </div>
-      <div class="version-chip">Sürüm v1.3.0</div>
+<footer id="iletisim">
+  <div class="container footer-content">
+
+    <div class="footer-brand">
+      <h3>Zihin Atölyesi</h3>
+      <p>Butik Eğitim & Koçluk</p>
+      <p>Birlikte başaracağız.</p>
     </div>
-  </footer>
+
+    <div class="footer-contact">
+      <p class="muted">İletişim</p>
+      <p>✉️ bilgi@zihinatolyesi.com</p>
+      <p>📞 +90 542 672 67 50</p>
+    </div>
+
+    <div class="footer-version version-chip">Sürüm v1.4.0</div>
+
+    <!-- İstersen Konum + Takip Et altta ayrı satır kalsın -->
+    <div class="footer-cols">
+      <div>
+        <p class="muted">Konum</p>
+        <p>📍 İzmir / Türkiye</p>
+      </div>
+      <div>
+        <p class="muted">Takip Et</p>
+        <p>Instagram / YouTube</p>
+      </div>
+    </div>
+
+  </div>
+</footer>
+
 
   <div id="contactWidget" class="contact-widget">
     <button id="contactToggle" class="contact-toggle wa-fab"><i class="fa-brands fa-whatsapp"></i> Bize Ulaşın</button>
-    <div id="contactPanel" class="contact-panel wa-panel hidden">    <div id="contactPanel" class="contact-panel hidden">
+    <div id="contactPanel" class="contact-panel wa-panel hidden">   
       <div class="contact-head">
         <div>
           <p class="muted">WhatsApp Hattı</p>
@@ -561,6 +568,9 @@
     function openWhatsApp(preset){
       const base = `https://wa.me/${WHATSAPP_NUMBER}`;
       const full = `${preset}\n\n(Zihin Atölyesi üzerinden gönderildi)`;
+      const url = `${base}?text=${encodeURIComponent(full)}`;
+      window.open(url, "_blank");
+      panel?.classList.add('hidden');
     }
 
     document.querySelectorAll('[data-whatsapp]').forEach(btn=>{
