@@ -13,7 +13,58 @@ const LOG_VERBOSE = DEV_MODE;
 if (!window.supabase) {
   alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
 }
+const HEADER_SELECTORS = [
+  "header.site-header",
+  "#site-header",
+  ".site-header",
+  "#header",
+  "header"
+];
+let headerObserver = null;
+let lastHeaderHeight = -1;
 
+function findHostHeader() {
+  const header = HEADER_SELECTORS
+    .map(sel => document.querySelector(sel))
+    .find(el => el && !el.closest("#app"));
+  return header || null;
+}
+
+function computeHeaderHeight(el) {
+  if (!el) return 0;
+  const rect = el.getBoundingClientRect();
+  const styles = window.getComputedStyle(el);
+  const marginTop = parseFloat(styles.marginTop) || 0;
+  const marginBottom = parseFloat(styles.marginBottom) || 0;
+  return Math.max(0, Math.ceil(rect.height + marginTop + marginBottom));
+}
+
+function applyHeaderOffset() {
+  const header = findHostHeader();
+  const height = computeHeaderHeight(header);
+  if (height === lastHeaderHeight) return;
+  lastHeaderHeight = height;
+  document.documentElement.style.setProperty("--header-h", `${height}px`);
+
+  if (headerObserver) headerObserver.disconnect();
+  if (window.ResizeObserver && header) {
+    headerObserver = new ResizeObserver(() => {
+      const next = computeHeaderHeight(header);
+      if (next !== lastHeaderHeight) {
+        lastHeaderHeight = next;
+        document.documentElement.style.setProperty("--header-h", `${next}px`);
+      }
+    });
+    headerObserver.observe(header);
+  }
+}
+
+function initPanelOffsets() {
+  applyHeaderOffset();
+  window.addEventListener("resize", applyHeaderOffset, { passive: true });
+  window.addEventListener("orientationchange", applyHeaderOffset);
+  window.addEventListener("load", applyHeaderOffset);
+}
 const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
 if (!supabaseConfigOk) {
   alert("Supabase yapılandırması eksik (URL veya ANON KEY boş). Lütfen ortam değişkenlerini kontrol et.");
@@ -30,7 +81,7 @@ const $modalBody = document.getElementById("modalBody");
 const $modalFoot = document.getElementById("modalFoot");
 document.getElementById("modalClose").addEventListener("click", closeModal);
 $backdrop.addEventListener("click", closeModal);
-
+initPanelOffsets();
 const state = {
   roleChoice: localStorage.getItem("roleChoice") || "",
   session: null,

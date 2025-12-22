@@ -19,6 +19,10 @@
   --gap: 14px;
   --radius: 14px;
   --font-base: 16px;
+  --header-h: 0px;
+  --safe-top: env(safe-area-inset-top);
+  --panel-top-offset: calc(var(--header-h) + var(--safe-top));
+  --toolbar-z: 140;
   font-synthesis-weight:none;
 }
 
@@ -33,6 +37,8 @@ body{
   color:var(--text);
   font-size: var(--font-base);
   overflow-x: hidden;
+  padding-top: var(--panel-top-offset);
+  scroll-padding-top: calc(var(--panel-top-offset) + 16px);
 }
 
 a{ color:inherit; }
@@ -67,8 +73,8 @@ small{ color:var(--muted); }
   border-radius: var(--r);
   box-shadow: var(--shadow);
   position:sticky;
-  top:12px;
-  z-index:5;
+  top: calc(var(--panel-top-offset) + 12px);
+  z-index: var(--toolbar-z);
 }
 
 .nav{
@@ -108,7 +114,6 @@ small{ color:var(--muted); }
 }
 @media (max-width: 920px){
   .grid2, .grid3{ grid-template-columns: 1fr; }
-  .topbar{ position:static; }
 }
 
 .card{
@@ -280,7 +285,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   .role-card { padding: 30px; flex-direction: row; flex-wrap: wrap; text-align: left; }
   .role-card div[style*="font-size:40px"] { margin-right: 20px !important; margin-bottom: 0 !important; font-size: 40px !important; }
   .role-card .btn { width: 100% !important; margin-top: 15px !important; }
-  .topbar{ position:sticky; top:0; margin-bottom:6px; }
+  .topbar{ position:sticky; top: calc(var(--panel-top-offset) + 6px); margin-bottom:6px; }
   .nav{
     position:fixed;
     left:12px; right:12px;
@@ -318,7 +323,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   inset:0;
   background: rgba(0,0,0,.55);
   backdrop-filter: blur(6px);
-  z-index:50;
+  z-index:500;
 }
 .modal{
   position:fixed;
@@ -332,7 +337,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   background: rgba(15,22,33,.92);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  z-index:51;
+  z-index:510;
 }
 .modal-head{
   display:flex; align-items:center; justify-content:space-between;
@@ -350,7 +355,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   bottom:calc(14px + env(safe-area-inset-bottom));
   display:grid;
   gap:10px;
-  z-index:60;
+  z-index:520;
 }
 .toast{
   border:1px solid var(--line);
@@ -440,7 +445,7 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   position:fixed;
   right:18px;
   bottom:calc(18px + env(safe-area-inset-bottom));
-  z-index:120;
+  z-index:360;
   pointer-events:none;
 }
 .contact-toggle{
