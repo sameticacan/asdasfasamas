@@ -1,4 +1,4 @@
-const APP_VERSION = window.APP_VERSION || "1.3.0"; // Tek sürüm referansı (HTML de buradan beslenir)
+const APP_VERSION = window.APP_VERSION || "1.4.0"; // Tek sürüm referansı (HTML de buradan beslenir)
 const BRAND_NAME = "Zihin Atölyesi";
 const SUPPORT_EMAIL = "destek@zihinatolyesi.com";
 const SUPPORT_HOURS = "Hafta içi 09.00-22.00 • Hafta sonu 10.00-20.00";
@@ -36,12 +36,14 @@ const state = {
   session: null,
   user: null,
   profile: null,
+  profileDetails: null,
   cache: {
     subjects: null,
     subjectsMeta: { error: null, empty: false },
     packagesBySubject: new Map(),
     packagesMeta: new Map(),
     teacherSubjects: null,
+    profilesList: null,
   },
   debugOpen: false,
   lastError: "",
@@ -69,6 +71,7 @@ async function init() {
     state.session = session;
     state.user = session?.user || null;
     state.profile = null;
+    state.profileDetails = null;
     await route();
   });
 
@@ -393,9 +396,13 @@ async function ensureProfileLoaded() {
   if (state.profile) return;
   if (!state.user) return;
 
+  const isAdmin = state.roleChoice === "admin";
+  const baseColumns = isAdmin
+    ? "id, role, full_name, verified, created_at, public_name_pref, phone"
+    : "id, role, full_name, verified, created_at, public_name_pref";
   const { data: prof, error } = await sb
     .from("profiles")
-    .select("*")
+    .select(baseColumns)
     .eq("id", state.user.id)
     .maybeSingle();
 
@@ -624,44 +631,57 @@ function renderAuth(role) {
   }
 }
 async function safeSignOut() {
+  // 1. Önce "yerel" olarak ölü taklidi yap (Race Condition önleyici)
+  // Bunu en başa koyuyoruz ki, alttaki işlemler sürerken arayüz veri çekmeye çalışmasın.
+  state.user = null;
+  state.session = null;
+  state.profile = null;
+  state.profileDetails = null;
+  
+  // Rol seçimini temizle
   clearRoleChoice();
+
   if (!sb) {
-    state.session = null;
-    state.user = null;
-    state.profile = null;
     location.hash = "";
     return;
   }
+
   try {
-    const { error: refreshError } = await sb.auth.refreshSession();
-    logSupabase("auth.refreshSession", { error: refreshError });
-    if (refreshError && (refreshError.status === 401 || refreshError.status === 403)) {
-      toast("warn", "Oturum tazeleme yetkisiz (çıkış zorlanıyor)");
-    }
-    let { error } = await sb.auth.signOut({ scope: "global" });
-    logSupabase("auth.signOut global", { error });
-    if (error && (error.status === 403 || /token/i.test(error.message || ""))) {
-      const alt = await sb.auth.signOut({ scope: "local" });
-      logSupabase("auth.signOut local", { error: alt.error });
-      if (alt.error) toast("warn", "Yerel oturum kapatma uyarısı: " + alt.error.message);
-    } else if (error) {
-      toast("error", "Çıkış hatası: " + error.message);
+    // 2. Supabase sunucusuna "ben çıkıyorum" de
+    // Burası hata verse bile umursamıyoruz çünkü yerelde zaten çıktık.
+    const { error } = await sb.auth.signOut({ scope: "global" });
+    if (error) {
+        // Token zaten ölüyse 'local' scope ile temizlemeyi dene
+        await sb.auth.signOut({ scope: "local" });
+        console.warn("Global çıkış hatası (önemsiz):", error.message);
     }
   } catch (err) {
-    toast("error", "Çıkış tamamlanamadı: " + (err?.message || err));
+    console.warn("Çıkış sırasında ağ hatası:", err);
   }
 
+  // 3. Çöp Temizliği (Local Storage)
   const ref = (SUPABASE_URL.split("https://")[1] || "").split(".")[0];
   const key = `sb-${ref}-auth-token`;
   localStorage.removeItem(key);
   localStorage.removeItem(`${key}-global`);
+  
+  // Cache temizliği
+  state.cache = { 
+    subjects: null, 
+    subjectsMeta: { error: null, empty: false }, 
+    packagesBySubject: new Map(), 
+    packagesMeta: new Map(), 
+    teacherSubjects: null, 
+    profilesList: null 
+  };
 
-  state.session = null;
-  state.user = null;
-  state.profile = null;
-  state.cache = { subjects: null, subjectsMeta: { error: null, empty: false }, packagesBySubject: new Map(), packagesMeta: new Map(), teacherSubjects: null };  location.hash = "";
-  toast("success", "Çıkış yapıldı (zorlandı).");
+  // 4. Sayfayı tertemiz yap
+  location.hash = "";
+  toast("success", "Başarıyla çıkış yapıldı.");
   updateDebugPanel();
+  
+  // Garanti olsun diye sayfayı yenilemek en temizidir (isteğe bağlı)
+  // location.reload(); 
 }
 function renderRoleMismatch(msg) {
   shell({
@@ -680,13 +700,14 @@ function renderRoleMismatch(msg) {
 function renderStudentApp(hash) {
   const nav = [
     { hash: "home", label: "Panel" },
+    { hash: "profile", label: "Profilim" },
     { hash: "catalog", label: "Dersler" },
     { hash: "market", label: "Öğretmenler" },
     { hash: "my", label: "Derslerim" },
     { hash: "progress", label: "İlerleme" },
     { hash: "messages", label: "Notlar" }
   ];
-
+  if (hash === "profile") return renderStudentProfile(nav);
   if (hash === "catalog") return studentCatalog(nav);
   if (hash === "market") return renderTeacherMarket(nav, "student");
   if (hash === "my") return studentMySubjects(nav);
@@ -698,13 +719,16 @@ function renderStudentApp(hash) {
 function renderParentApp(hash) {
   const nav = [
     { hash: "home", label: "Özet" },
+    { hash: "profile", label: "Profilim" },
+    { hash: "linked", label: "Bağlı Öğrenciler" },
     { hash: "catalog", label: "Dersler" },
     { hash: "market", label: "Öğretmenler" },
     { hash: "my", label: "Takip" },
     { hash: "reports", label: "Rapor" },
     { hash: "notes", label: "Notlar" }
   ];
-
+  if (hash === "profile") return renderParentProfile(nav);
+  if (hash === "linked") return renderParentLinked(nav);
   if (hash === "catalog") return parentCatalog(nav);
   if (hash === "market") return renderTeacherMarket(nav, "parent");
   if (hash === "my") return parentMy(nav);
@@ -716,9 +740,11 @@ function renderParentApp(hash) {
 function renderTeacherApp(hash) {
   const nav = [
     { hash: "home", label: "Öğretmen Paneli" },
+    { hash: "profile", label: "Profilim" },
     { hash: "subjects", label: "Derslerim" },
     { hash: "reviews", label: "Puanlar" }
   ];
+  if (hash === "profile") return renderTeacherProfile(nav);
   if (hash === "subjects") return teacherSubjects(nav);
   if (hash === "reviews") return teacherReviews(nav);
   return teacherHome(nav);
@@ -727,13 +753,18 @@ function renderTeacherApp(hash) {
 function renderAdminHub(hash) {
   const nav = [
     { hash: "home", label: "Admin Hub" },
+    { hash: "admin-users", label: "Kullanıcılar" },
+    { hash: "admin-profile", label: "Profil Detayı" },
+    { hash: "admin-linking", label: "Veli–Öğrenci" },
     { hash: "enrollments", label: "Tüm Kayıtlar" },
     { hash: "teachers", label: "Öğretmenler" },
     { hash: "catalog", label: "Ders Kataloğu" },
     { hash: "reviews", label: "Yorumlar" },
     { hash: "panel", label: "Yönetim" }
   ];
-
+  if (hash === "admin-users") return renderAdminUsers(nav);
+  if (hash === "admin-profile") return renderAdminProfile(nav);
+  if (hash === "admin-linking") return renderAdminLinking(nav);
   if (hash === "enrollments") return adminEnrollments(nav);
   if (hash === "teachers") return adminTeachers(nav);
   if (hash === "catalog") return adminCatalog(nav);
@@ -988,7 +1019,129 @@ async function openMarketRequestModal(teacher_profile_id, subjectIds, viewerLabe
 function validEmail(email){
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+/* ----------------- PROFILE HELPERS ----------------- */
+function isAdminRole() {
+  return state.profile?.role === "admin";
+}
 
+function policyToast(error) {
+  if (!error) return;
+  if (error.code === "403" || error.code === "401" || (error.message || "").toLowerCase().includes("policy")) {
+    toast("error", "Bu bilgiye erişim yetkiniz yok");
+  }
+}
+
+async function fetchProfileCore(profileId, includePhone = false) {
+  const columns = includePhone
+    ? "id, role, full_name, verified, created_at, public_name_pref, phone"
+    : "id, role, full_name, verified, created_at, public_name_pref";
+  const { data, error, status } = await sb
+    .from("profiles")
+    .select(columns)
+    .eq("id", profileId)
+    .maybeSingle();
+  logSupabase("profiles.core", { data, error, status });
+  if (error) {
+    policyToast(error);
+    return null;
+  }
+  return data;
+}
+
+async function fetchStudentDetail(profileId) {
+  const { data, error } = await sb
+    .from("student_profiles")
+    .select("class_level, target_exam, target_major, city, about")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  logSupabase("student_profiles.select", { data, error });
+  if (error && error.code !== "PGRST116") policyToast(error);
+  return data || null;
+}
+
+async function fetchParentDetail(profileId) {
+  const { data, error } = await sb
+    .from("parent_profiles")
+    .select("preferred_contact, about")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  logSupabase("parent_profiles.select", { data, error });
+  if (error && error.code !== "PGRST116") policyToast(error);
+  return data || null;
+}
+
+async function fetchTeacherDetail(profileId) {
+  const { data, error } = await sb
+    .from("teacher_profiles")
+    .select("bio, city, experience_years, lesson_format")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  logSupabase("teacher_profiles.select", { data, error });
+  if (error && error.code !== "PGRST116") policyToast(error);
+  return data || null;
+}
+
+async function fetchParentStudents(profileId) {
+  const { data, error } = await sb
+    .from("parent_students")
+    .select("id, parent_profile_id, student_profile_id, relation")
+    .eq("parent_profile_id", profileId);
+  logSupabase("parent_students.select", { data, error });
+  if (error) {
+    policyToast(error);
+    return [];
+  }
+  const studentIds = [...new Set((data || []).map(r => r.student_profile_id))];
+  let profileMap = new Map();
+  if (studentIds.length) {
+    const { data: students, error: sErr } = await sb
+      .from("profiles")
+      .select("id, full_name, role")
+      .in("id", studentIds);
+    logSupabase("profiles.students", { data: students, error: sErr });
+    profileMap = new Map((students || []).map(s => [s.id, s]));
+  }
+  return (data || []).map(row => ({
+    id: row.id,
+    relation: row.relation || "öğrenci",
+    student: profileMap.get(row.student_profile_id) || { id: row.student_profile_id, full_name: "Öğrenci", role: "student" }
+  }));
+}
+
+async function loadProfileDetails(force = false) {
+  if (state.profileDetails && !force) return state.profileDetails;
+  if (!state.profile?.id) return null;
+
+  const core = await fetchProfileCore(state.profile.id, isAdminRole());
+  if (!core) return null;
+
+  const role = core.role;
+  const detail = { core };
+
+  if (role === "student") detail.student = await fetchStudentDetail(core.id);
+  if (role === "parent") {
+    detail.parent = await fetchParentDetail(core.id);
+    detail.children = await fetchParentStudents(core.id);
+  }
+  if (role === "teacher") detail.teacher = await fetchTeacherDetail(core.id);
+
+  state.profileDetails = detail;
+  return detail;
+}
+
+async function loadAnyProfileDetails(profileId, roleHint) {
+  const core = await fetchProfileCore(profileId, true);
+  if (!core) return null;
+  const role = roleHint || core.role;
+  const detail = { core };
+  if (role === "student") detail.student = await fetchStudentDetail(profileId);
+  if (role === "parent") {
+    detail.parent = await fetchParentDetail(profileId);
+    detail.children = await fetchParentStudents(profileId);
+  }
+  if (role === "teacher") detail.teacher = await fetchTeacherDetail(profileId);
+  return detail;
+}
 /* ----------------- STUDENT: HOME ----------------- */
 async function studentHome(nav){
   const contentHTML = `
@@ -1119,6 +1272,274 @@ function calcFakeStreak(done){
   return 5;
 }
 
+/* ----------------- STUDENT: PROFILE ----------------- */
+async function renderStudentProfile(nav){
+  const details = await loadProfileDetails();
+  const student = details?.student || {};
+  const core = details?.core || state.profile || {};
+
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Profilim</h2>
+          <p>Ad soyad, sınıf ve hedef bilgilerini güncelle. Yalnızca kendi profilini düzenleyebilirsin.</p>
+        </div>
+        <span class="badge blue">Öğrenci</span>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div>
+          <label>Ad Soyad</label>
+          <input class="input" id="spName" autocomplete="name" />
+        </div>
+        <div>
+          <label>Sınıf</label>
+          <input class="input" id="spClass" placeholder="Örn: 11" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Hedef Sınav</label>
+          <select id="spTargetExam">
+            <option value="">Seçiniz</option>
+            <option value="YKS">YKS</option>
+            <option value="LGS">LGS</option>
+            <option value="Okul">Okul</option>
+          </select>
+        </div>
+        <div>
+          <label>Hedef Bölüm</label>
+          <input class="input" id="spTargetMajor" placeholder="Örn: Tıp, Yazılım" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Şehir</label>
+          <input class="input" id="spCity" placeholder="İstanbul" />
+        </div>
+        <div>
+          <label>Hakkımda</label>
+          <textarea class="input" id="spAbout" placeholder="Kısa bir not..."></textarea>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="row end">
+        <button class="btn" id="spSave">Kaydet</button>
+      </div>
+    </div>
+  `});
+
+  qs("#spName").value = core.full_name || "";
+  qs("#spClass").value = student.class_level || "";
+  qs("#spTargetExam").value = student.target_exam || "";
+  qs("#spTargetMajor").value = student.target_major || "";
+  qs("#spCity").value = student.city || "";
+  qs("#spAbout").value = student.about || "";
+
+  qs("#spSave")?.addEventListener("click", async () => {
+    const full_name = qs("#spName").value.trim();
+    const class_level = qs("#spClass").value.trim();
+    const target_exam = qs("#spTargetExam").value;
+    const target_major = qs("#spTargetMajor").value.trim();
+    const city = qs("#spCity").value.trim();
+    const about = qs("#spAbout").value.trim();
+
+    if(!full_name) return toast("error","Ad soyad zorunlu.");
+    const updates = { full_name };
+    const { error: pErr } = await sb.from("profiles").update(updates).eq("id", state.profile.id);
+    logSupabase("profiles.update.student", { error: pErr });
+    if(pErr) return toast("error", friendlyPostgrestError(pErr));
+
+    const payload = { profile_id: state.profile.id, class_level, target_exam, target_major, city, about };
+    const { error: sErr } = await sb.from("student_profiles").upsert([payload]);
+    logSupabase("student_profiles.upsert", { error: sErr });
+    if(sErr) return toast("error", friendlyPostgrestError(sErr));
+
+    toast("success","Profil güncellendi.");
+    state.profileDetails = null;
+    await loadProfileDetails(true);
+  });
+}
+
+/* ----------------- PARENT: PROFILE ----------------- */
+async function renderParentProfile(nav){
+  const details = await loadProfileDetails();
+  const parent = details?.parent || {};
+  const core = details?.core || state.profile || {};
+
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Profilim</h2>
+          <p>İletişim tercihini ve hakkımda alanını güncelle. Telefon bilgisi gösterilmez.</p>
+        </div>
+        <span class="badge warn">Veli</span>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div>
+          <label>Ad Soyad</label>
+          <input class="input" id="ppName" autocomplete="name" />
+        </div>
+        <div>
+          <label>Tercih edilen iletişim</label>
+          <select id="ppContact">
+            <option value="">Seçiniz</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>Hakkımda</label>
+        <textarea class="input" id="ppAbout" placeholder="Kısa tanıtım"></textarea>
+      </div>
+      <div class="divider"></div>
+      <div class="row end">
+        <button class="btn" id="ppSave">Kaydet</button>
+      </div>
+    </div>
+  `});
+
+  qs("#ppName").value = core.full_name || "";
+  qs("#ppContact").value = parent.preferred_contact || "";
+  qs("#ppAbout").value = parent.about || "";
+
+  qs("#ppSave")?.addEventListener("click", async () => {
+    const full_name = qs("#ppName").value.trim();
+    const preferred_contact = qs("#ppContact").value;
+    const about = qs("#ppAbout").value.trim();
+    if(!full_name) return toast("error","Ad soyad zorunlu.");
+
+    const { error: pErr } = await sb.from("profiles").update({ full_name }).eq("id", state.profile.id);
+    logSupabase("profiles.update.parent", { error: pErr });
+    if(pErr) return toast("error", friendlyPostgrestError(pErr));
+
+    const payload = { profile_id: state.profile.id, preferred_contact, about };
+    const { error: dErr } = await sb.from("parent_profiles").upsert([payload]);
+    logSupabase("parent_profiles.upsert", { error: dErr });
+    if(dErr) return toast("error", friendlyPostgrestError(dErr));
+
+    toast("success","Profil güncellendi.");
+    state.profileDetails = null;
+    await loadProfileDetails(true);
+  });
+}
+
+async function renderParentLinked(nav){
+  const details = await loadProfileDetails();
+  const children = details?.children || [];
+
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Bağlı Öğrenciler</h2>
+          <p>Bu listede yalnızca admin tarafından bağlanan öğrenciler görünür. İsim ve ilişki bilgisi yer alır.</p>
+        </div>
+        <span class="badge warn">Salt Okunur</span>
+      </div>
+      <div class="divider"></div>
+      <div id="parentLinkedList"></div>
+    </div>
+  `});
+
+  const listEl = qs("#parentLinkedList");
+  if(!children.length){
+    listEl.innerHTML = renderEmptyState("Henüz profil bilgisi girilmedi");
+    return;
+  }
+  listEl.innerHTML = children.map(ch => `
+    <div class="linked-item">
+      <div>
+        <div class="title">${esc(ch.student.full_name || "Öğrenci")}</div>
+        <small>${esc(ch.relation || "öğrenci")}</small>
+      </div>
+    </div>
+  `).join("");
+}
+
+/* ----------------- TEACHER: PROFILE ----------------- */
+async function renderTeacherProfile(nav){
+  const details = await loadProfileDetails();
+  const teacher = details?.teacher || {};
+  const core = details?.core || state.profile || {};
+
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Profilim</h2>
+          <p>Bio, şehir ve deneyim bilgilerini güncelle. Telefon alanı gösterilmez.</p>
+        </div>
+        <span class="badge blue">Öğretmen</span>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div>
+          <label>Ad Soyad</label>
+          <input class="input" id="tpName" autocomplete="name" />
+        </div>
+        <div>
+          <label>Şehir</label>
+          <input class="input" id="tpCity" placeholder="Ankara" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Deneyim yılı</label>
+          <input class="input" id="tpExp" type="number" min="0" />
+        </div>
+        <div>
+          <label>Ders verdiği format</label>
+          <select id="tpFormat">
+            <option value="">Seçiniz</option>
+            <option value="online">Online</option>
+            <option value="yüzyüze">Yüzyüze</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>Bio</label>
+        <textarea class="input" id="tpBio" placeholder="Deneyim, uzmanlık..."></textarea>
+      </div>
+      <div class="divider"></div>
+      <div class="row end">
+        <button class="btn" id="tpSave">Kaydet</button>
+      </div>
+    </div>
+  `});
+
+  qs("#tpName").value = core.full_name || "";
+  qs("#tpCity").value = teacher.city || "";
+  qs("#tpExp").value = teacher.experience_years || "";
+  qs("#tpFormat").value = teacher.lesson_format || "";
+  qs("#tpBio").value = teacher.bio || "";
+
+  qs("#tpSave")?.addEventListener("click", async () => {
+    const full_name = qs("#tpName").value.trim();
+    const city = qs("#tpCity").value.trim();
+    const experience_years = Number(qs("#tpExp").value || 0);
+    const lesson_format = qs("#tpFormat").value;
+    const bio = qs("#tpBio").value.trim();
+    if(!full_name) return toast("error","Ad soyad zorunlu.");
+
+    const { error: pErr } = await sb.from("profiles").update({ full_name }).eq("id", state.profile.id);
+    logSupabase("profiles.update.teacher", { error: pErr });
+    if(pErr) return toast("error", friendlyPostgrestError(pErr));
+
+    const payload = { profile_id: state.profile.id, city, experience_years, lesson_format, bio };
+    const { error: tErr } = await sb.from("teacher_profiles").upsert([payload]);
+    logSupabase("teacher_profiles.upsert", { error: tErr });
+    if(tErr) return toast("error", friendlyPostgrestError(tErr));
+
+    toast("success","Profil güncellendi.");
+    state.profileDetails = null;
+    await loadProfileDetails(true);
+  });
+}
 /* ----------------- STUDENT: CATALOG ----------------- */
 async function studentCatalog(nav){
   shell({ navItems: nav, contentHTML: `
@@ -1714,7 +2135,7 @@ async function parentNotes(nav){
   shell({ navItems: nav, contentHTML: `
     <div class="card">
       <h2>Öğretmen Notları</h2>
-      <div class="lock">Öğretmen notları görev notlarında görünür. Bir sonraki adım: “parent_visible” filtreli akış.</div>
+      <div class="lock">Öğretmen notları görev notlarında görünür.</div>
     </div>
   `});
 }
@@ -2352,7 +2773,261 @@ async function adminReviews(nav){
     });
   });
 }
+/* ----------------- ADMIN: USERS (PHONE-GATED) ----------------- */
+async function ensureAdminProfileCache(force = false){
+  if(!force && state.cache.profilesList) return state.cache.profilesList;
+  const { data: users, error, status } = await sb
+    .from("profiles")
+    .select("id, full_name, role, verified, phone, created_at")
+    .order("created_at", { ascending:false })
+    .limit(300);
+  logSupabase("profiles.select.admin.list", { data: users, error, status });
+  if(error){
+    policyToast(error);
+    return null;
+  }
+  state.cache.profilesList = users || [];
+  return state.cache.profilesList;
+}
 
+async function renderAdminUsers(nav){
+  const users = await ensureAdminProfileCache(true);
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Kullanıcılar</h2>
+          <p>Telefon bilgisi sadece bu ekranda gösterilir.</p>
+        </div>
+        <span class="badge green"><i class="fa-solid fa-lock"></i> Admin</span>
+      </div>
+      <div class="divider"></div>
+      <div id="adminUserTable">${renderEmptyState("Yükleniyor...")}</div>
+    </div>
+  `});
+
+  if(!users){
+    qs("#adminUserTable").innerHTML = `<div class="lock">Veri alınamadı.</div>`;
+    return;
+  }
+
+  const rows = users.map(u => `
+    <tr>
+      <td><b>${esc(u.full_name)}</b><div><small>${esc(u.id)}</small></div></td>
+      <td>${esc(u.role)}</td>
+      <td>${u.verified ? `<span class="badge blue">✔</span>` : `–`}</td>
+      <td>${esc(u.phone || "—")}</td>
+      <td>${new Date(u.created_at).toLocaleDateString("tr-TR")}</td>
+    </tr>
+  `).join("");
+
+  qs("#adminUserTable").innerHTML = `
+    <table class="table">
+      <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Onay</th><th><i class="fa-solid fa-lock"></i> Telefon</th><th>Tarih</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5"><div class="lock">Kayıt bulunamadı.</div></td></tr>`}</tbody>
+    </table>
+    <div class="admin-phone-note"><i class="fa-solid fa-lock"></i> Bu bilgi sadece admin tarafından görülebilir</div>
+  `;
+}
+
+/* ----------------- ADMIN: PROFILE DETAIL ----------------- */
+async function renderAdminProfile(nav){
+  let users = await ensureAdminProfileCache();
+  if(!users){
+    users = [];
+  }
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Profil Detayı</h2>
+          <p>Tüm rol bilgilerini tek ekranda görüntüle. Telefon sadece burada gösterilir.</p>
+        </div>
+        <span class="badge green"><i class="fa-solid fa-lock"></i> Admin</span>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div>
+          <label>Kullanıcı seç</label>
+          <select id="adminProfileSelect">${users.map(u=>`<option value="${esc(u.id)}">${esc(u.full_name)} (${esc(u.role)})</option>`).join("")}</select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div id="adminProfileDetail">${renderEmptyState("Profil seçiniz")}</div>
+    </div>
+  `});
+
+  const select = qs("#adminProfileSelect");
+  const detailBox = qs("#adminProfileDetail");
+  async function draw(profileId){
+    if(!profileId){
+      detailBox.innerHTML = renderEmptyState("Profil seçiniz");
+      return;
+    }
+    detailBox.innerHTML = `<div class="skel" style="width:60%"></div>`;
+    const selected = (users || []).find(u=>u.id===profileId);
+    const detail = await loadAnyProfileDetails(profileId, selected?.role);
+    if(!detail){
+      detailBox.innerHTML = `<div class="lock">Profil okunamadı.</div>`;
+      return;
+    }
+    const core = detail.core;
+    const phoneHtml = `<div class="admin-phone">
+      <i class="fa-solid fa-lock"></i>
+      <div>
+        <div class="label">Telefon</div>
+        <div class="value">${esc(core.phone || "—")}</div>
+        <small>Bu bilgi sadece admin tarafından görülebilir</small>
+      </div>
+    </div>`;
+    let roleHtml = `<div class="lock">Henüz profil bilgisi girilmedi</div>`;
+    if(core.role === "student"){
+      const s = detail.student || {};
+      roleHtml = `
+        <div class="grid2">
+          <div><label>Sınıf</label><div class="pill">${esc(s.class_level || "—")}</div></div>
+          <div><label>Hedef Sınav</label><div class="pill">${esc(s.target_exam || "—")}</div></div>
+        </div>
+        <div class="grid2">
+          <div><label>Hedef Bölüm</label><div class="pill">${esc(s.target_major || "—")}</div></div>
+          <div><label>Şehir</label><div class="pill">${esc(s.city || "—")}</div></div>
+        </div>
+        <div><label>Hakkında</label><div class="pill">${esc(s.about || "—")}</div></div>
+      `;
+    } else if(core.role === "parent"){
+      const p = detail.parent || {};
+      const kids = (detail.children || []).map(ch => `<div class="pill">${esc(ch.student.full_name || "Öğrenci")} • ${esc(ch.relation || "")}</div>`).join("") || `<div class="lock">Henüz profil bilgisi girilmedi</div>`;
+      roleHtml = `
+        <div class="grid2">
+          <div><label>İletişim</label><div class="pill">${esc(p.preferred_contact || "—")}</div></div>
+          <div><label>Hakkında</label><div class="pill">${esc(p.about || "—")}</div></div>
+        </div>
+        <div><label>Bağlı öğrenciler</label><div class="pill-row">${kids}</div></div>
+      `;
+    } else if(core.role === "teacher"){
+      const t = detail.teacher || {};
+      roleHtml = `
+        <div class="grid2">
+          <div><label>Şehir</label><div class="pill">${esc(t.city || "—")}</div></div>
+          <div><label>Deneyim yılı</label><div class="pill">${esc(t.experience_years || "—")}</div></div>
+        </div>
+        <div><label>Format</label><div class="pill">${esc(t.lesson_format || "—")}</div></div>
+        <div><label>Bio</label><div class="pill">${esc(t.bio || "—")}</div></div>
+      `;
+    }
+
+    detailBox.innerHTML = `
+      <div class="profile-summary">
+        <div>
+          <div class="title">${esc(core.full_name || "")}</div>
+          <div class="muted">${esc(core.role)}</div>
+        </div>
+        ${phoneHtml}
+      </div>
+      <div class="divider"></div>
+      ${roleHtml}
+    `;
+  }
+  select?.addEventListener("change", e => draw(e.target.value));
+  if(select && select.value) draw(select.value);
+}
+
+/* ----------------- ADMIN: PARENT/STUDENT LINKING ----------------- */
+async function renderAdminLinking(nav){
+  shell({ navItems: nav, contentHTML: `
+    <div class="card">
+      <div class="row spread">
+        <div>
+          <h2>Veli–Öğrenci Eşleştirme</h2>
+          <p>Bağla / kaldır işlemleri yalnızca admin tarafından yapılır.</p>
+        </div>
+        <span class="badge green"><i class="fa-solid fa-lock"></i> Admin</span>
+      </div>
+      <div class="divider"></div>
+      <div class="grid3">
+        <div>
+          <label>Veli</label>
+          <select id="linkParent"></select>
+        </div>
+        <div>
+          <label>Öğrenci</label>
+          <select id="linkStudent"></select>
+        </div>
+        <div>
+          <label>İlişki</label>
+          <input class="input" id="linkRelation" placeholder="Anne/Baba vb." />
+        </div>
+      </div>
+      <div class="row end" style="margin-top:12px;">
+        <button class="btn" id="btnLink">Bağla</button>
+      </div>
+      <div class="divider"></div>
+      <div id="linkList"></div>
+    </div>
+  `});
+
+  const parentSel = qs("#linkParent");
+  const studentSel = qs("#linkStudent");
+  const linkList = qs("#linkList");
+
+  const { data: parents } = await sb.from("profiles").select("id, full_name").eq("role","parent").order("full_name");
+  const { data: students } = await sb.from("profiles").select("id, full_name").eq("role","student").order("full_name");
+  parentSel.innerHTML = (parents||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.full_name)}</option>`).join("");
+  studentSel.innerHTML = (students||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.full_name)}</option>`).join("");
+
+  async function loadLinks(){
+    const { data: links, error } = await sb.from("parent_students").select("id, parent_profile_id, student_profile_id, relation");
+    logSupabase("parent_students.list", { data: links, error });
+    if(error){
+      policyToast(error);
+      linkList.innerHTML = `<div class="lock">${esc(friendlyPostgrestError(error))}</div>`;
+      return;
+    }
+    if(!links?.length){
+      linkList.innerHTML = renderEmptyState("Henüz profil bilgisi girilmedi");
+      return;
+    }
+    linkList.innerHTML = links.map(l => {
+      const p = (parents||[]).find(x=>x.id===l.parent_profile_id);
+      const s = (students||[]).find(x=>x.id===l.student_profile_id);
+      return `
+        <div class="linked-item">
+          <div>
+            <div class="title">${esc(p?.full_name || "Veli")}</div>
+            <small>${esc(s?.full_name || "Öğrenci")} • ${esc(l.relation || "ilişki yok")}</small>
+          </div>
+          <button class="btn secondary" data-unlink="${esc(l.id)}">Kaldır</button>
+        </div>
+      `;
+    }).join("");
+
+    qsa("[data-unlink]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-unlink");
+        const { error: delErr } = await sb.from("parent_students").delete().eq("id", id);
+        logSupabase("parent_students.delete", { error: delErr });
+        if(delErr) return toast("error", friendlyPostgrestError(delErr));
+        toast("success","Bağlantı kaldırıldı.");
+        loadLinks();
+      });
+    });
+  }
+
+  qs("#btnLink")?.addEventListener("click", async () => {
+    const parent_profile_id = parentSel.value;
+    const student_profile_id = studentSel.value;
+    const relation = qs("#linkRelation").value.trim();
+    if(!parent_profile_id || !student_profile_id) return toast("error","Veli ve öğrenci seçin.");
+    const { error } = await sb.from("parent_students").insert([{ parent_profile_id, student_profile_id, relation }]);
+    logSupabase("parent_students.insert", { error });
+    if(error) return toast("error", friendlyPostgrestError(error));
+    toast("success","Bağlantı eklendi.");
+    qs("#linkRelation").value = "";
+    loadLinks();
+  });
+
+  loadLinks();
+}
 async function adminPanel(nav){
   await renderAdminPanelInside(nav);
 }

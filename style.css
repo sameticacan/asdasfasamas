@@ -123,7 +123,7 @@ h1 { font-size: 54px; line-height: 1.1; margin: 18px 0 12px; letter-spacing: -1p
 .quick-links a { color: #cbd5e1; }
 
 .footer-content { display: flex; justify-content: space-between; gap: 20px; padding: 32px 0; border-top: 1px solid var(--border); }
-.footer-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; text-align: right; }
+.footer-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; text-align: center; }
 .version-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 12px; }
 
 /* Contact Widget */
