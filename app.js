@@ -8,7 +8,10 @@ const IS_LOCAL = ["localhost", "127.0.0.1", "0.0.0.0"].some(h => location.hostna
 const DEV_MODE = IS_LOCAL && !PROD_HOSTS.includes(location.hostname);
 const SUPABASE_URL = "https://kengcnwwxdsnuylfnhre.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlbmdjbnd3eGRzbnV5bGZuaHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MTYwNjQsImV4cCI6MjA4MTQ5MjA2NH0.UF5r4458DtzJIEFYAe9ZcukDKg2-NoJMBHVwJTX8B1A";
-
+// Debug kilidi için eşikler
+const DEBUG_UNLOCK_KEY = "debugUnlocked";
+const DEBUG_TAP_THRESHOLD = 7;
+const DEBUG_TAP_RESET_MS = 900;
 const LOG_VERBOSE = DEV_MODE;
 if (!window.supabase) {
   alert("Supabase kütüphanesi yüklenemedi (CDN engeli/ağ). Adblock varsa kapatıp yenile.");
@@ -120,8 +123,12 @@ const state = {
     profilesList: null,
   },
   debugOpen: false,
+  debugElements: { panel: null, chip: null },
+  debugDeniedToastShown: false,
+  debugTapCount: 0,
+  debugTapTimer: null,
   lastError: "",
-    adminLockUntil: parseInt(localStorage.getItem("adminLockUntil") || "0", 10),
+  adminLockUntil: parseInt(localStorage.getItem("adminLockUntil") || "0", 10),
   adminTries: parseInt(localStorage.getItem("adminTries") || "0", 10),
 };
 
@@ -316,7 +323,7 @@ function applyMobileTableLabels() {
   });
 }
 function ensureDebugPanel() {
-  if (qs("#debugPanel")) return;
+  if (state.debugElements?.panel) return;
   const box = document.createElement("div");
   box.id = "debugPanel";
   box.className = "debug-panel hidden";
@@ -327,7 +334,6 @@ function ensureDebugPanel() {
     </div>
     <div id="debugBody" class="debug-body"></div>
   `;
-  document.body.appendChild(box);
 
   const chip = document.createElement("button");
   chip.id = "debugChip";
@@ -337,11 +343,57 @@ function ensureDebugPanel() {
     state.debugOpen = !state.debugOpen;
     updateDebugPanel();
   });
-  document.body.appendChild(chip);
 
   box.querySelector("#debugToggle").addEventListener("click", () => {
     state.debugOpen = false;
     updateDebugPanel();
+  });
+  state.debugElements = { panel: box, chip };
+}
+
+function attachDebugUI() {
+  ensureDebugPanel();
+  const { panel, chip } = state.debugElements;
+  if (!chip.isConnected) document.body.appendChild(chip);
+  if (!panel.isConnected) document.body.appendChild(panel);
+}
+
+function detachDebugUI() {
+  const { panel, chip } = state.debugElements || {};
+  if (chip?.isConnected) chip.remove();
+  if (panel?.isConnected) panel.remove();
+  state.debugOpen = false;
+}
+
+function shouldEnableDebug() {
+  const params = new URLSearchParams(location.search);
+  return params.get("debug") === "1" || localStorage.getItem(DEBUG_UNLOCK_KEY) === "1";
+}
+
+function hasDebugAccess() {
+  return DEV_MODE || state.profile?.role === "admin";
+}
+
+function unlockDebugWithToast() {
+  localStorage.setItem(DEBUG_UNLOCK_KEY, "1");
+  state.debugDeniedToastShown = false;
+  toast("success", "Debug açıldı");
+  updateDebugPanel();
+}
+
+function attachDebugUnlockers(root = document) {
+  qsa(".brand", root).forEach(el => {
+    if (el.dataset.debugTapReady) return;
+    el.dataset.debugTapReady = "1";
+    el.addEventListener("click", () => {
+      state.debugTapCount = (state.debugTapCount || 0) + 1;
+      clearTimeout(state.debugTapTimer);
+      state.debugTapTimer = setTimeout(() => { state.debugTapCount = 0; }, DEBUG_TAP_RESET_MS);
+      if (state.debugTapCount >= DEBUG_TAP_THRESHOLD) {
+        state.debugTapCount = 0;
+        unlockDebugWithToast();
+      }
+    });
   });
 }
 
@@ -395,16 +447,27 @@ function setLastError(msg) {
 }
 
 function updateDebugPanel() {
-  const box = qs("#debugPanel");
-  if (!box) return;
-  const chip = qs("#debugChip") || state.debugChip;
-  const allowDebug = DEV_MODE || state.profile?.role === "admin";
-  if (chip) chip.classList.toggle("hidden", !allowDebug);
-  if (!allowDebug) {
-    state.debugOpen = false;
-    box.classList.add("hidden");
+  const wantsDebug = shouldEnableDebug();
+  const allowDebug = hasDebugAccess();
+
+  if (!wantsDebug) {
+    detachDebugUI();
+    state.debugDeniedToastShown = false;
     return;
   }
+  if (!allowDebug) {
+    detachDebugUI();
+    if (!state.debugDeniedToastShown) {
+      toast("warn", "Yetki yok");
+      state.debugDeniedToastShown = true;
+    }
+    return;
+  }
+  attachDebugUI();
+  state.debugDeniedToastShown = false;
+  const box = state.debugElements?.panel;
+  const chip = state.debugElements?.chip;
+  if (!box || !chip) return;
   const body = qs("#debugBody", box);
   const subjectsCount = state.cache.subjects?.length || 0;
   const packagesCount = Array.from(state.cache.packagesBySubject.values()).reduce((sum, arr) => sum + (arr?.length || 0), 0);
@@ -465,7 +528,7 @@ async function route() {
   }
   // --- DÜZELTME BİTİŞİ ---
 
-  if (pRole === "admin") state.debugOpen = true; 
+ if (pRole === "admin" && shouldEnableDebug()) state.debugOpen = true;  
 
   const h = activeHash();
   // Admin, öğrenci panelini seçtiyse orayı render etsin (kontrolü geçtik artık)
@@ -560,6 +623,7 @@ function shell({ titleRight = "", navItems = [], contentHTML = "" }) {
   const logoutBtn = qs("#logoutBtn");
   logoutBtn?.addEventListener("click", async () => {
     await safeSignOut();
+    attachDebugUnlockers($app); // Debug kilidi: brand tıklaması
   });
   applyMobileTableLabels();
 }
@@ -613,6 +677,7 @@ function renderRoleSelect() {
       route();
     });
   });
+  attachDebugUnlockers($app); 
 }
 
 function renderAdminLock(realRole) {
@@ -682,6 +747,7 @@ function renderAuth(role) {
   qs("#loginBtn")?.addEventListener("click", doLogin);
   
   qs("#forgotBtn")?.addEventListener("click", doForgot);
+  attachDebugUnlockers($app);
 
   async function doLogin() {
     const email = qs("#loginEmail").value.trim();
