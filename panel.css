@@ -22,7 +22,7 @@
   --header-h: 0px;
   --safe-top: env(safe-area-inset-top);
   --panel-top-offset: calc(var(--header-h) + var(--safe-top));
-  --toolbar-z: 140;
+  --toolbar-z: 400;
   font-synthesis-weight:none;
 }
 
@@ -37,6 +37,8 @@ body{
   color:var(--text);
   font-size: var(--font-base);
   overflow-x: hidden;
+}
+body.panel-page{
   padding-top: var(--panel-top-offset);
   scroll-padding-top: calc(var(--panel-top-offset) + 16px);
 }
@@ -82,6 +84,7 @@ small{ color:var(--muted); }
   align-items:center;
   gap:10px;
   flex-wrap:wrap;
+  z-index: var(--toolbar-z);
 }
 .nav a, .nav button{
   border:1px solid var(--line);

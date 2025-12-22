@@ -18,10 +18,16 @@ const HEADER_SELECTORS = [
   "#site-header",
   ".site-header",
   "#header",
-  "header"
+  "header",
+  ".header",
+  "#main-header",
+  "body > header",
+  "body > nav"
 ];
 let headerObserver = null;
 let lastHeaderHeight = -1;
+const HEADER_FALLBACK = 64;
+let headerRecalcQueued = false;
 
 function findHostHeader() {
   const header = HEADER_SELECTORS
@@ -40,8 +46,12 @@ function computeHeaderHeight(el) {
 }
 
 function applyHeaderOffset() {
+  headerRecalcQueued = false;
   const header = findHostHeader();
-  const height = computeHeaderHeight(header);
+  let height = computeHeaderHeight(header);
+  if (!height) {
+    height = lastHeaderHeight > 0 ? lastHeaderHeight : HEADER_FALLBACK;
+  }
   if (height === lastHeaderHeight) return;
   lastHeaderHeight = height;
   document.documentElement.style.setProperty("--header-h", `${height}px`);
@@ -60,11 +70,24 @@ function applyHeaderOffset() {
 }
 
 function initPanelOffsets() {
-  applyHeaderOffset();
-  window.addEventListener("resize", applyHeaderOffset, { passive: true });
-  window.addEventListener("orientationchange", applyHeaderOffset);
-  window.addEventListener("load", applyHeaderOffset);
+  const scheduleHeaderOffset = () => {
+    if (headerRecalcQueued) return;
+    headerRecalcQueued = true;
+    requestAnimationFrame(applyHeaderOffset);
+  };
+
+  scheduleHeaderOffset();
+  window.addEventListener("resize", scheduleHeaderOffset, { passive: true });
+  window.addEventListener("orientationchange", scheduleHeaderOffset);
+  window.addEventListener("load", scheduleHeaderOffset);
+  // Late header injection watchdog (e.g., SPA shells)
+  const bodyObserver = new MutationObserver(scheduleHeaderOffset);
+  bodyObserver.observe(document.body, { childList: true, subtree: true });
+  setTimeout(scheduleHeaderOffset, 50);
+  setTimeout(scheduleHeaderOffset, 300);
 }
+
+
 const supabaseConfigOk = Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
 if (!supabaseConfigOk) {
   alert("Supabase yapılandırması eksik (URL veya ANON KEY boş). Lütfen ortam değişkenlerini kontrol et.");
