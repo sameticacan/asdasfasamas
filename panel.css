@@ -26,6 +26,23 @@
   --toolbar-z: 400;
   font-synthesis-weight:none;
 }
+/* Panel sayfası: dış header yok, sadece safe-area var */
+body.panel-page{
+  --header-h: 0px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 90px);
+}
+
+/* Topbar üstten asla kesilmesin */
+body.panel-page .topbar{
+  top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+}
+
+/* iOS’ta sticky/fixed gariplikleri için ufak sigorta */
+body.panel-page{
+  -webkit-overflow-scrolling: touch;
+}
+
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
