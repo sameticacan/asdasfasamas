@@ -641,7 +641,7 @@ function renderRoleSelect() {
   document.body.classList.remove("role-student", "role-parent", "role-admin", "role-teacher");
 
   $app.innerHTML = `
-    <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center;">
+    <div class="container" style="min-height:100vh; padding-top: 80px; padding-bottom: 40px;">
       <div class="card" style="text-align:center; padding:40px;">
         <div class="brand" style="justify-content:center; font-size:32px; margin-bottom:10px;">
           <span class="dot"></span>Zihin Atölyesi
@@ -721,7 +721,7 @@ function renderAuth(role) {
   const accentBadge = role === "student" ? "blue" : role === "parent" ? "warn" : role === "teacher" ? "blue" : "green";
 
   $app.innerHTML = `
-    <div class="container" style="min-height:80vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <div class="container" style="min-height:100vh; padding-top: 80px; padding-bottom: 40px;">
       <button class="btn secondary" onclick="clearRoleChoice(); route();" style="margin-bottom:20px;">← Rol Seçimine Dön</button>
       
       <div class="card" style="width:100%; max-width:400px; padding:30px;">

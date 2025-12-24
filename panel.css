@@ -33,9 +33,21 @@ body.panel-page{
   scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 90px);
 }
 
-/* Topbar üstten asla kesilmesin */
+/* panel.css: Satır 30 civarı */
+
+/* 1. Header yüksekliğini garantiye al */
+body.panel-page{
+  --header-h: 0px;
+  /* Eğer telefon safe-area vermezse en az 20px boşluk bırak */
+  padding-top: max(env(safe-area-inset-top), 20px); 
+  scroll-padding-top: 100px;
+}
+
+/* 2. Topbar'ı çentiğin altına it ve en üste çıkar */
 body.panel-page .topbar{
-  top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+  /* env() çalışmazsa 15px, çalışırsa çentik + 10px */
+  top: max(env(safe-area-inset-top), 15px) !important; 
+  z-index: 9999 !important; /* Her şeyin üstünde dursun */
 }
 
 /* iOS’ta sticky/fixed gariplikleri için ufak sigorta */
