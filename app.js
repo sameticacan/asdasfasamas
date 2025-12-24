@@ -31,6 +31,7 @@ let headerObserver = null;
 let lastHeaderHeight = -1;
 const HEADER_FALLBACK = 64;
 let headerRecalcQueued = false;
+const IS_PANEL_PAGE = document.body?.classList.contains("panel-page");
 
 function findHostHeader() {
   const header = HEADER_SELECTORS
@@ -50,6 +51,12 @@ function computeHeaderHeight(el) {
 
 function applyHeaderOffset() {
   headerRecalcQueued = false;
+  if (IS_PANEL_PAGE) {
+    if (headerObserver) headerObserver.disconnect();
+    lastHeaderHeight = 0;
+    document.documentElement.style.setProperty("--header-h", "0px");
+    return;
+  }
   const header = findHostHeader();
   let height = computeHeaderHeight(header);
   if (!height) {
@@ -83,11 +90,13 @@ function initPanelOffsets() {
   window.addEventListener("resize", scheduleHeaderOffset, { passive: true });
   window.addEventListener("orientationchange", scheduleHeaderOffset);
   window.addEventListener("load", scheduleHeaderOffset);
-  // Late header injection watchdog (e.g., SPA shells)
-  const bodyObserver = new MutationObserver(scheduleHeaderOffset);
-  bodyObserver.observe(document.body, { childList: true, subtree: true });
-  setTimeout(scheduleHeaderOffset, 50);
-  setTimeout(scheduleHeaderOffset, 300);
+  if (!IS_PANEL_PAGE) {
+    // Late header injection watchdog (e.g., SPA shells)
+    const bodyObserver = new MutationObserver(scheduleHeaderOffset);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+    setTimeout(scheduleHeaderOffset, 50);
+    setTimeout(scheduleHeaderOffset, 300);
+  }
 }
 
 

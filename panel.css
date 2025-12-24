@@ -56,10 +56,6 @@ body{
   font-size: var(--font-base);
   overflow-x: hidden;
 }
-body.panel-page{
-  padding-top: calc(var(--panel-top-offset) + 12px);
-  scroll-padding-top: calc(var(--panel-top-offset) + 24px);
-}
 
 a{ color:inherit; }
 small{ color:var(--muted); }
