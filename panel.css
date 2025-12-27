@@ -20,39 +20,26 @@
   --radius: 14px;
   --font-base: 16px;
   --header-h: 0px;
-  --safe-top: max(env(safe-area-inset-top), 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --panel-top-offset: max(var(--safe-top), 16px);
   --safe-bottom: max(env(safe-area-inset-bottom), 0px);
   --panel-top-offset: calc(var(--header-h) + var(--safe-top));
   --toolbar-z: 400;
   font-synthesis-weight:none;
 }
-/* Panel sayfası: dış header yok, sadece safe-area var */
+
+
 body.panel-page{
   --header-h: 0px;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-  scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 90px);
-}
-
-/* panel.css: Satır 30 civarı */
-
-/* 1. Header yüksekliğini garantiye al */
-body.panel-page{
-  --header-h: 0px;
-  /* Eğer telefon safe-area vermezse en az 20px boşluk bırak */
-  padding-top: max(env(safe-area-inset-top), 20px); 
-  scroll-padding-top: 100px;
-}
-
-/* 2. Topbar'ı çentiğin altına it ve en üste çıkar */
-body.panel-page .topbar{
-  /* env() çalışmazsa 15px, çalışırsa çentik + 10px */
-  top: max(env(safe-area-inset-top), 15px) !important; 
-  z-index: 9999 !important; /* Her şeyin üstünde dursun */
-}
-
-/* iOS’ta sticky/fixed gariplikleri için ufak sigorta */
-body.panel-page{
+  padding-top: 0;
+  scroll-padding-top: calc(var(--panel-top-offset) + 90px);
   -webkit-overflow-scrolling: touch;
+}
+
+/* Panelde container üst padding’i safe-area ile büyüsün */
+body.panel-page .container{
+  padding-top: calc(16px + var(--panel-top-offset));
 }
 
 
@@ -315,7 +302,13 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   .role-card { padding: 30px; flex-direction: row; flex-wrap: wrap; text-align: left; }
   .role-card div[style*="font-size:40px"] { margin-right: 20px !important; margin-bottom: 0 !important; font-size: 40px !important; }
   .role-card .btn { width: 100% !important; margin-top: 15px !important; }
-  .topbar{ position:sticky; top: calc(var(--panel-top-offset) + 6px); margin-bottom:6px; }
+  .topbar{
+  top: calc(var(--panel-top-offset) + 12px);
+  position: sticky;
+  top: calc(var(--panel-top-offset) + 8px);
+  z-index: 999;
+}
+
   .nav{
     position:fixed;
     left:12px; right:12px;

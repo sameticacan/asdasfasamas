@@ -331,7 +331,12 @@ function applyMobileTableLabels() {
     });
   });
 }
+function isDebugUnlocked(){
+  return localStorage.getItem("ZA_DEBUG_OK") === "1";
+}
 function ensureDebugPanel() {
+  const allow = (DEV_MODE || state.profile?.role === "admin") && isDebugUnlocked();
+  if(!allow) return;
   if (state.debugElements?.panel) return;
   const box = document.createElement("div");
   box.id = "debugPanel";
@@ -505,7 +510,33 @@ function activeHash() {
   const h = location.hash.replace("#", "").trim();
   return h || "home";
 }
+function armSecretDebugGesture(){
+  const brand = document.querySelector(".brand");
+  if(!brand || brand.dataset.debugArmed) return;
+  brand.dataset.debugArmed = "1";
 
+  let taps = 0;
+  let last = 0;
+
+  brand.addEventListener("click", () => {
+    const now = Date.now();
+    if(now - last > 1800) taps = 0;
+    last = now;
+    taps++;
+
+    if(taps >= 7){
+      if(state.profile?.role === "admin"){
+        localStorage.setItem("ZA_DEBUG_OK","1");
+        toast("Debug açıldı", "success");
+        ensureDebugPanel();
+        updateDebugPanel();
+      }else{
+        toast("Debug kapalı", "warn");
+      }
+      taps = 0;
+    }
+  });
+}
 async function route() {
   setBodyRoleClass();
   updateDebugPanel();
@@ -537,14 +568,18 @@ async function route() {
   }
   // --- DÜZELTME BİTİŞİ ---
 
- if (pRole === "admin" && shouldEnableDebug()) state.debugOpen = true;  
+    if (pRole === "admin" && localStorage.getItem("ZA_DEBUG_OK") === "1") {
+  state.debugOpen = true;
+    } 
 
   const h = activeHash();
+  queueMicrotask(() => armSecretDebugGesture());
   // Admin, öğrenci panelini seçtiyse orayı render etsin (kontrolü geçtik artık)
   if (state.roleChoice === "student") return renderStudentApp(h);
   if (state.roleChoice === "parent") return renderParentApp(h);
   if (state.roleChoice === "teacher") return renderTeacherApp(h);
   if (state.roleChoice === "admin") return renderAdminHub(h);
+
 }
 
 async function ensureProfileLoaded() {
