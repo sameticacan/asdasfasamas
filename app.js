@@ -651,7 +651,11 @@ function shell({ titleRight = "", navItems = [], contentHTML = "" }) {
             ${state.roleChoice === "student" ? "Öğrenci" : state.roleChoice === "parent" ? "Veli" : state.roleChoice === "teacher" ? "Öğretmen" : "Admin"}
           </span>
         </div>
-        <div class="nav">
+        <button class="nav-toggle" id="navToggle" aria-label="Menü" aria-expanded="false">
+        ☰
+        </button>
+
+        <div class="nav" id="topNav">
           ${navHTML}
           <button class="btn secondary" id="logoutBtn">Çıkış</button>
         </div>
@@ -676,6 +680,27 @@ function renderRoleSelect() {
   document.body.classList.remove("role-student", "role-parent", "role-admin", "role-teacher");
 
   $app.innerHTML = `
+    // ✅ Mobil burger nav
+  const navToggle = document.getElementById("navToggle");
+  const topNav = document.getElementById("topNav");
+
+  if (navToggle && topNav) {
+    navToggle.onclick = (e) => {
+      e.preventDefault();
+      const open = $app.classList.toggle("nav-open");
+      navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+
+    // Mobilde menüden bir şeye tıklayınca kapansın (link veya buton)
+    topNav.addEventListener("click", (e) => {
+      if (!window.matchMedia("(max-width: 560px)").matches) return;
+      const hit = e.target.closest("a,button");
+      if (!hit) return;
+      $app.classList.remove("nav-open");
+      navToggle.setAttribute("aria-expanded", "false");
+    });
+  }
+
     <div class="container" style="min-height:100vh; padding-top: 80px; padding-bottom: 40px;">
       <div class="card" style="text-align:center; padding:40px;">
         <div class="brand" style="justify-content:center; font-size:32px; margin-bottom:10px;">
