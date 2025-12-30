@@ -680,7 +680,6 @@ function renderRoleSelect() {
   document.body.classList.remove("role-student", "role-parent", "role-admin", "role-teacher");
 
   $app.innerHTML = `
-    // ✅ Mobil burger nav
   const navToggle = document.getElementById("navToggle");
   const topNav = document.getElementById("topNav");
 
@@ -690,8 +689,6 @@ function renderRoleSelect() {
       const open = $app.classList.toggle("nav-open");
       navToggle.setAttribute("aria-expanded", open ? "true" : "false");
     };
-
-    // Mobilde menüden bir şeye tıklayınca kapansın (link veya buton)
     topNav.addEventListener("click", (e) => {
       if (!window.matchMedia("(max-width: 560px)").matches) return;
       const hit = e.target.closest("a,button");
