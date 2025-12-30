@@ -2954,7 +2954,12 @@ async function adminReviews(nav){
   if(error) return toast("error","Yorumlar alınamadı: " + friendlyPostgrestError(error));
 
   // map teacher/reviewer names
-  const ids = [...new Set((reviews||[]).flatMap(r => [r.teacher_profile_id, r.reviewer_profile_id]).filter(Boolean))];
+  const ids = [...new Set(
+  (reviews || [])
+    .flatMap(r => [r.teacher_profile_id, r.reviewer_profile_id])
+    .filter(Boolean)
+)];
+
   let profs = [];
   if(ids.length){
     const res = await sb.from("profiles").select("id,full_name").in("id", ids);
