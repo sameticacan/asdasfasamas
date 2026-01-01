@@ -3661,3 +3661,18 @@ function renderEmptyState(message = "Veri bulunamadı") {
     </div>
   `;
 }
+// ✅ Mobil burger: re-render olsa bile çalışsın (event delegation)
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("#navToggle");
+  if (!btn) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const app = document.getElementById("app");
+  if (!app) return;
+
+  app.classList.toggle("nav-open");
+  const open = app.classList.contains("nav-open");
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+});

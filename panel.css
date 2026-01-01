@@ -674,4 +674,11 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
     white-space: nowrap;
   }
 }
+/* ✅ Burger tıklanabilirliği garantiye al */
+#navToggle{
+  position: relative;
+  z-index: 9999;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
 
