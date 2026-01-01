@@ -681,4 +681,35 @@ label{ font-size:12px; color: var(--muted); display:block; margin:10px 0 6px; }
   pointer-events: auto;
   touch-action: manipulation;
 }
+/* ✅ Mobil burger menü: “yukarıda karışma” fix */
+@media (max-width:560px){
+
+  /* Topbar mobilde daha opak olsun ki alttaki yazılar görünmesin */
+  .topbar{
+    background: rgba(15,22,33,.95) !important;
+    backdrop-filter: blur(14px);
+  }
+
+  /* Menü açılınca daha da opak + gölge */
+  #app.nav-open .topbar{
+    background: rgba(10,14,22,.98) !important;
+    box-shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+
+  /* Nav açılınca topbar içinde “kart” gibi dursun */
+  #app.nav-open .nav{
+    background: rgba(10,14,22,.96);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 18px 44px rgba(0,0,0,.55);
+    margin-top: 8px;
+  }
+
+  /* Burger her zaman tıklanabilir olsun */
+  #navToggle{
+    position: relative;
+    z-index: 9999;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+}
 

@@ -3676,3 +3676,13 @@ document.addEventListener("click", (e) => {
   const open = app.classList.contains("nav-open");
   btn.setAttribute("aria-expanded", open ? "true" : "false");
 });
+document.addEventListener("click", (e) => {
+  const app = document.getElementById("app");
+  if (!app) return;
+
+  const isToggle = e.target.closest("#navToggle");
+  const isInsideTopbar = e.target.closest(".topbar");
+
+  if (isToggle) return; // toggle kendi işini görsün
+  if (!isInsideTopbar) app.classList.remove("nav-open");
+});
