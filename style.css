@@ -343,3 +343,36 @@ footer { background: #fff; }
     left: auto !important;
   }
 }
+/* ✅ Mobilde burger açılınca butonlar menü dışına taşmasın */
+@media (max-width: 480px){
+
+  /* Burger açılınca nav-actions’ı dikey kolon yap */
+  #navToggle:checked ~ .nav-rail .nav-actions{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  /* Asıl suçlu: mobilde fixed olan login butonunu menü içinde "normal" yap */
+  #navToggle:checked ~ .nav-rail .nav-actions .btn-login{
+    position: static !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none; /* istersen kalsın, taşmayı etkilemez */
+  }
+
+  /* Ekibi Gör butonu da aynı hizada dursun */
+  #navToggle:checked ~ .nav-rail .nav-actions .btn-ghost{
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Uzun metin varsa taşmasın */
+  #navToggle:checked ~ .nav-rail .nav-actions button{
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
