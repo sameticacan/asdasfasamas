@@ -308,3 +308,32 @@ footer { background: #fff; }
     gap: 10px;
   }
 }
+/* ✅ Mobilde burger menüde taşmayı bitir */
+@media (max-width: 480px){
+
+  /* Menü paneli */
+  .nav-rail{
+    width: min(92vw, 360px);
+    max-width: 92vw;
+    box-sizing: border-box;
+  }
+
+  /* Menü içindeki tüm link/butonlar */
+  .nav-rail a,
+  .nav-rail button{
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Özellikle "Panele giriş" butonu taşmasın */
+  .nav-rail .btn,
+  .nav-rail .btn.primary,
+  .nav-rail .btn.secondary{
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: normal;       /* kırılabilsin */
+    overflow-wrap: anywhere;   /* dar alanda taşmasın */
+  }
+}
