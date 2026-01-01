@@ -232,6 +232,24 @@ footer { background: #fff; }
 }
 
 @media (max-width: 480px) {
+  .nav-flex{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* Brand solda kalsın, taşmasın */
+  .brand{
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Burger tam sağa yaslansın */
+  .nav-burger{
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
   body { padding-top: 0; }
   .nav-toggle:checked ~ .nav-rail { opacity: 1; pointer-events: auto; transform: translateY(8px); }
   .navbar { position: sticky; top: 0; }
@@ -257,5 +275,36 @@ footer { background: #fff; }
   .footer-cols{
     grid-template-columns: 1fr;
     text-align: center;
+  }
+}
+/* ✅ Mobil burger menüde butonlar üst üste binmesin */
+@media (max-width: 480px){
+
+  /* Burger ile açılan menü paneli */
+  .nav-rail{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;              /* buton arası boşluk */
+    padding: 12px;
+  }
+
+  /* Menü içindeki link/butonlar tam genişlik */
+  .nav-rail a,
+  .nav-rail button{
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  /* Eğer iki buton bir wrapper içindeyse onu da kolon yap */
+  .nav-rail .nav-actions,
+  .nav-rail .actions,
+  .nav-rail .btn-row{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 }
